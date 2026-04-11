@@ -83,35 +83,52 @@ export function enhanceImageCanvas(
         const [h, s, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
         
         // Treat near-neutral shadows/highlights as neutral so they stay black/white.
-        // HSL saturation is noisy in very dark pixels, so also inspect raw channel spread.
-        const maxChannel = Math.max(data[i], data[i + 1], data[i + 2]);
-        const minChannel = Math.min(data[i], data[i + 1], data[i + 2]);
+        // HSL saturation is noisy in very dark/bright pixels, so inspect raw RGB spread too.
+        const sourceR = data[i];
+        const sourceG = data[i + 1];
+        const sourceB = data[i + 2];
+        const maxChannel = Math.max(sourceR, sourceG, sourceB);
+        const minChannel = Math.min(sourceR, sourceG, sourceB);
+        const avgChannel = (sourceR + sourceG + sourceB) / 3;
         const channelSpread = maxChannel - minChannel;
         const isShadowNeutral = l < 0.32 && channelSpread < 24;
-        const isHighlightNeutral = l > 0.78 && channelSpread < 30;
-        const isNeutral = s < 0.08 || isShadowNeutral || isHighlightNeutral;
+        const isHighlightNeutral =
+          (l > 0.72 && avgChannel > 205 && channelSpread < 42) ||
+          (l > 0.80 && minChannel > 185 && channelSpread < 56);
+        const isNeutral = s < 0.06 || isShadowNeutral || isHighlightNeutral;
 
-        // Fade vibrancy in gradually for darker pixels so blacks never pick up tint.
-        // Fade out vibrancy for very bright pixels so whites don't pick up blue tint.
-        const darkFade = l < 0.35 ? Math.max(0, (l - 0.18) / 0.17) : 1;
-        const lightFade = l > 0.75 ? Math.max(0, (1 - l) / 0.25) : 1;
+        // Fade vibrancy out more aggressively near black and near white.
+        const darkFade = l < 0.38 ? Math.max(0, (l - 0.20) / 0.18) : 1;
+        const lightFade = l > 0.68 ? Math.max(0, (0.92 - l) / 0.24) : 1;
         const effectiveSatBoost = isNeutral ? 0 : saturationBoost * darkFade * lightFade;
         const boostedS = Math.min(1, s + effectiveSatBoost * (1 - s));
-        // Force neutral pixels to zero saturation so they stay pure black/white
-        const newS = (isShadowNeutral || isHighlightNeutral) ? 0 : boostedS;
+        const newS = isShadowNeutral || isHighlightNeutral ? 0 : boostedS;
 
-        // Keep shadows dark (no brightness lift), brighten highlights, and only lift midtones.
+        // Keep shadows dark, brighten highlights, and only lift midtones.
         let newL: number;
         if (l < 0.30) {
           newL = Math.max(0, l + (l - 0.5) * (contrastBoost * 1.35));
-        } else if (l > 0.85) {
-          newL = l + (1 - l) * 0.6;
+        } else if (l > 0.78) {
+          newL = Math.min(1, l + (1 - l) * 0.72);
         } else {
           const contrastL = l + (l - 0.5) * contrastBoost;
           const clampedL = Math.max(0, Math.min(1, contrastL));
-          newL = Math.min(1, clampedL + brightnessBoost * (1 - clampedL));
+          const midtoneBrightness = l > 0.68 ? brightnessBoost * 0.35 : brightnessBoost;
+          newL = Math.min(1, clampedL + midtoneBrightness * (1 - clampedL));
         }
-        const [r, g, b] = hslToRgb(h, newS, newL);
+
+        let r: number;
+        let g: number;
+        let b: number;
+
+        if (isShadowNeutral || isHighlightNeutral) {
+          const neutral = Math.round(newL * 255);
+          r = neutral;
+          g = neutral;
+          b = neutral;
+        } else {
+          [r, g, b] = hslToRgb(h, newS, newL);
+        }
 
         data[i] = r;
         data[i + 1] = g;

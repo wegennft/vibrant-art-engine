@@ -80,6 +80,14 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "neon-pulse": {
+          "0%, 100%": {
+            textShadow: "3px 3px 0 hsl(45, 90%, 45%, 0.6), 0 0 20px hsl(270, 80%, 60%, 0.8), 0 0 40px hsl(270, 80%, 55%, 0.6), 0 0 80px hsl(270, 70%, 50%, 0.4), 0 0 120px hsl(270, 80%, 55%, 0.3)",
+          },
+          "50%": {
+            textShadow: "3px 3px 0 hsl(45, 90%, 45%, 0.6), 0 0 30px hsl(270, 80%, 65%, 1), 0 0 60px hsl(270, 80%, 55%, 0.8), 0 0 100px hsl(270, 70%, 50%, 0.6), 0 0 150px hsl(270, 80%, 55%, 0.4)",
+          },
+        },
         "pulse-glow": {
           "0%, 100%": { opacity: "0.4" },
           "50%": { opacity: "0.8" },

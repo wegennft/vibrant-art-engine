@@ -141,12 +141,13 @@ const Index = () => {
         {/* Hero Title */}
         <div className="text-center py-6">
           <h2
-            className="text-5xl md:text-7xl font-bold tracking-wider uppercase"
+            className="text-6xl md:text-8xl tracking-wide"
             style={{
-              fontFamily: "'Bungee Shade', 'Permanent Marker', cursive",
+              fontFamily: "'Rubik Spray Paint', 'Permanent Marker', cursive",
               color: 'hsl(270, 80%, 60%)',
-              WebkitTextStroke: '1.5px hsl(45, 90%, 55%)',
-              textShadow: '0 0 40px hsl(270, 80%, 55%, 0.5), 0 0 80px hsl(45, 90%, 55%, 0.3)',
+              WebkitTextStroke: '1px hsl(45, 90%, 55%)',
+              textShadow: '3px 3px 0 hsl(45, 90%, 45%, 0.6), 0 0 40px hsl(270, 80%, 55%, 0.5), 0 0 80px hsl(45, 90%, 55%, 0.2)',
+              transform: 'rotate(-2deg)',
             }}
           >
             Art Upgrader

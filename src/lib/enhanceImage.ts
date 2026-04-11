@@ -81,18 +81,21 @@ export function enhanceImageCanvas(
         if (a === 0) continue; // skip fully transparent pixels
 
         const [h, s, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
-        const newS = Math.min(1, s + saturationBoost * (1 - s));
+        
+        // Only boost saturation on pixels that already have meaningful color.
+        // Near-black (l < 0.15) or near-white (l > 0.85) or low-saturation (s < 0.1)
+        // pixels have unreliable hues — boosting saturation would turn black into
+        // brown/blue or white into tinted colors.
+        const isNeutral = s < 0.1 || l < 0.15 || l > 0.85;
+        const newS = isNeutral ? s : Math.min(1, s + saturationBoost * (1 - s));
         
         // Push darks darker and lights brighter
         let newL: number;
         if (l < 0.15) {
-          // Dark/black pixels — push toward pure black
-          newL = l * 0.5;
+          newL = l * 0.5; // darken blacks
         } else if (l > 0.85) {
-          // Light/white pixels — push toward pure white
-          newL = l + (1 - l) * 0.6;
+          newL = l + (1 - l) * 0.6; // brighten whites
         } else {
-          // Mid-tones: apply contrast + brightness
           const contrastL = l + (l - 0.5) * contrastBoost;
           const clampedL = Math.max(0, Math.min(1, contrastL));
           newL = Math.min(1, clampedL + brightnessBoost * (1 - clampedL));

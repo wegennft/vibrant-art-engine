@@ -81,6 +81,7 @@ export function enhanceImageCanvas(
         if (a === 0) continue; // skip fully transparent pixels
 
         const [h, s, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+        const hueDegrees = h * 360;
         
         // Treat near-neutral shadows/highlights as neutral so they stay black/white.
         // HSL saturation is noisy in very dark/bright pixels, so inspect raw RGB spread too.
@@ -107,23 +108,43 @@ export function enhanceImageCanvas(
         // boost when they're close to neutral (prevents spots on textured greys)
         const neutralityFactor = isNeutral ? 0 : Math.min(1, Math.max(0, (channelSpread - 25) / 40));
 
+        // Protect earthy browns from shifting toward vivid reds/oranges.
+        // Browns are typically darker warm hues with red leading, green supporting,
+        // and relatively restrained blue. They should get less saturation/contrast push.
+        const isWarmHue = hueDegrees >= 8 && hueDegrees <= 55;
+        const hasBrownChannelBalance = sourceR > sourceG && sourceG >= sourceB;
+        const hasControlledBlue = sourceB <= sourceG * 0.92;
+        const isBrownLightness = l >= 0.16 && l <= 0.52;
+        const isBrownSaturation = s >= 0.18 && s <= 0.75;
+        const isEarthTone =
+          isWarmHue &&
+          hasBrownChannelBalance &&
+          hasControlledBlue &&
+          isBrownLightness &&
+          isBrownSaturation;
+
+        const brownProtection = isEarthTone
+          ? Math.max(0.2, Math.min(0.65, 1 - ((0.52 - l) * 0.9 + s * 0.25)))
+          : 1;
+
         // Fade vibrancy out more aggressively near black and near white.
         const darkFade = l < 0.40 ? Math.max(0, (l - 0.18) / 0.22) : 1;
         const lightFade = l > 0.55 ? Math.max(0, (0.90 - l) / 0.35) : 1;
-        const effectiveSatBoost = saturationBoost * darkFade * lightFade * neutralityFactor;
+        const effectiveSatBoost = saturationBoost * darkFade * lightFade * neutralityFactor * brownProtection;
         const boostedS = Math.min(1, s + effectiveSatBoost * (1 - s));
         const newS = isShadowNeutral || isHighlightNeutral || isMidGrey ? 0 : boostedS;
 
         // Keep shadows dark, brighten highlights, and only lift midtones.
         let newL: number;
         if (l < 0.30) {
-          newL = Math.max(0, l + (l - 0.5) * (contrastBoost * 1.35));
+          const shadowContrast = contrastBoost * (isEarthTone ? 0.8 : 1.35);
+          newL = Math.max(0, l + (l - 0.5) * shadowContrast);
         } else if (l > 0.78) {
           newL = Math.min(1, l + (1 - l) * 0.72);
         } else {
-          const contrastL = l + (l - 0.5) * contrastBoost;
+          const contrastL = l + (l - 0.5) * contrastBoost * (isEarthTone ? 0.82 : 1);
           const clampedL = Math.max(0, Math.min(1, contrastL));
-          const midtoneBrightness = l > 0.68 ? brightnessBoost * 0.35 : brightnessBoost;
+          const midtoneBrightness = l > 0.68 ? brightnessBoost * 0.35 : brightnessBoost * (isEarthTone ? 0.88 : 1);
           newL = Math.min(1, clampedL + midtoneBrightness * (1 - clampedL));
         }
 

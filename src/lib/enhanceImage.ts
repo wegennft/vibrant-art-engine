@@ -51,6 +51,7 @@ export interface EnhanceOptions {
   grain?: number;           // 0 to 1, film grain intensity
   vignette?: number;        // 0 to 1, vignette darkness
   warmShift?: number;       // 0 to 1, warm color temperature shift
+  preserveHue?: [number, number]; // [min, max] hue range in degrees to keep colored, rest goes B&W
 }
 
 const DEFAULT_OPTIONS: EnhanceOptions = {

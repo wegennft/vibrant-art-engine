@@ -42,7 +42,7 @@ serve(async (req) => {
               content: [
                 {
                   type: "text",
-                  text: "Take this image and reproduce it at the EXACT same pixel dimensions, size, and shape. Do not crop, resize, pad, or change the aspect ratio in any way. Keep every element, line, and shape exactly as-is. The ONLY change should be making the colors more vibrant and saturated — boost color intensity, increase saturation, and make hues more vivid. Do not add text, watermarks, borders, or any new elements. Output must be identical to the input except with more vibrant colors.",
+                  text: "Take this image and reproduce it at the EXACT same pixel dimensions, size, and shape. Do not crop, resize, pad, or change the aspect ratio in any way. Keep every element, line, and shape exactly as-is. CRITICALLY IMPORTANT: preserve ALL transparency — any transparent or alpha areas MUST remain fully transparent. Do NOT add any background color, fill, or solid color behind transparent areas. The ONLY change should be making the visible/opaque colors more vibrant and saturated — boost color intensity, increase saturation, and make hues more vivid. Do not add text, watermarks, borders, or any new elements. Output must be a PNG with identical transparency to the input, just with more vibrant colors on the opaque pixels.",
                 },
                 {
                   type: "image_url",

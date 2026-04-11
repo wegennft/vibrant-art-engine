@@ -45,13 +45,15 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
 }
 
 export interface EnhanceOptions {
-  saturationBoost: number; // 0 to 1, how much to increase saturation (default 0.35)
-  brightnessBoost: number; // 0 to 1, how much to increase lightness (default 0.05)
+  saturationBoost: number;  // 0 to 1, how much to increase saturation
+  brightnessBoost: number;  // 0 to 1, how much to increase lightness
+  contrastBoost: number;    // 0 to 1, how much to increase contrast
 }
 
 const DEFAULT_OPTIONS: EnhanceOptions = {
-  saturationBoost: 0.50,
-  brightnessBoost: 0.08,
+  saturationBoost: 0.65,
+  brightnessBoost: 0.10,
+  contrastBoost: 0.15,
 };
 
 export function enhanceImageCanvas(

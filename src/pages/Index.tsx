@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Sparkles, Download } from "lucide-react";
+import { Sparkles, Download, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";

@@ -210,13 +210,20 @@ const Index = () => {
                   Download All
                 </Button>
               )}
-              <Button
-                onClick={enhanceAll}
-                disabled={isEnhancingAll || images.every((i) => i.enhancedSrc)}
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                {isEnhancingAll ? "Enhancing..." : "Enhance All"}
-              </Button>
+              {isEnhancingAll ? (
+                <Button variant="destructive" onClick={stopEnhancing}>
+                  <StopCircle className="w-4 h-4 mr-2" />
+                  Stop
+                </Button>
+              ) : (
+                <Button
+                  onClick={enhanceAll}
+                  disabled={images.every((i) => i.enhancedSrc)}
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Enhance All
+                </Button>
+              )}
             </div>
           </div>
         )}

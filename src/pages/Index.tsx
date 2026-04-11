@@ -57,16 +57,12 @@ const Index = () => {
       }));
 
     try {
-      const { data, error } = await supabase.functions.invoke("enhance-image", {
-        body: { imageBase64: image?.originalSrc, fileName: image?.fileName },
-      });
-
-      if (error) throw error;
+      const enhanced = await enhanceImageCanvas(image!.originalSrc);
 
       setImages((prev) =>
         prev.map((img) =>
           img.id === imageId
-            ? { ...img, enhancedSrc: data.enhancedImage, isProcessing: false }
+            ? { ...img, enhancedSrc: enhanced, isProcessing: false }
             : img
         )
       );

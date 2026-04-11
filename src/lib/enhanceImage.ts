@@ -81,8 +81,11 @@ export function enhanceImageCanvas(
         if (a === 0) continue; // skip fully transparent pixels
 
         const [h, s, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
-        const newS = Math.min(1, s + saturationBoost * (1 - s)); // boost toward full saturation
-        const newL = Math.min(1, l + brightnessBoost * (1 - l)); // gentle brightness lift
+        const newS = Math.min(1, s + saturationBoost * (1 - s));
+        // Contrast: push light colors lighter, dark colors darker, then apply brightness
+        const contrastL = l + (l - 0.5) * contrastBoost;
+        const clampedL = Math.max(0, Math.min(1, contrastL));
+        const newL = Math.min(1, clampedL + brightnessBoost * (1 - clampedL));
         const [r, g, b] = hslToRgb(h, newS, newL);
 
         data[i] = r;

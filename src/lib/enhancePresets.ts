@@ -34,8 +34,10 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
     description: "Cinematic still, moody shadows, low key lighting, grain texture, vignette",
     options: {
       saturationBoost: -1,
-      brightnessBoost: -0.05,
-      contrastBoost: 0.65,
+      brightnessBoost: -0.08,
+      contrastBoost: 0.70,
+      grain: 0.35,
+      vignette: 0.6,
     },
   },
 ];

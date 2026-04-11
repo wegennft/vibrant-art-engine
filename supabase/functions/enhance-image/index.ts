@@ -42,7 +42,7 @@ serve(async (req) => {
               content: [
                 {
                   type: "text",
-                  text: "Enhance this NFT art image: make the colors significantly more vibrant and saturated, increase brightness, boost contrast, and make it look more eye-catching and premium. Keep the exact same composition, shapes, and design — only improve the color vibrancy, brightness, and visual pop. Do not add any text or watermarks.",
+                  text: "Take this image and reproduce it at the EXACT same pixel dimensions, size, and shape. Do not crop, resize, pad, or change the aspect ratio in any way. Keep every element, line, and shape exactly as-is. The ONLY change should be making the colors more vibrant and saturated — boost color intensity, increase saturation, and make hues more vivid. Do not add text, watermarks, borders, or any new elements. Output must be identical to the input except with more vibrant colors.",
                 },
                 {
                   type: "image_url",

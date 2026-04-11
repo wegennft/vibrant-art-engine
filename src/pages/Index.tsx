@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";
 import BeforeAfterCard from "@/components/BeforeAfterCard";
+import EnhancePresetTabs from "@/components/EnhancePresetTabs";
 import { enhanceImageCanvas } from "@/lib/enhanceImage";
+import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
 
 interface ImageItem {
   id: string;

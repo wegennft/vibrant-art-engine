@@ -62,7 +62,7 @@ export function enhanceImageCanvas(
   imageSrc: string,
   options: Partial<EnhanceOptions> = {}
 ): Promise<string> {
-  const { saturationBoost, brightnessBoost, contrastBoost } = { ...DEFAULT_OPTIONS, ...options };
+  const { saturationBoost, brightnessBoost, contrastBoost, grain = 0, vignette = 0 } = { ...DEFAULT_OPTIONS, ...options };
 
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -195,6 +195,35 @@ export function enhanceImageCanvas(
       }
 
       ctx.putImageData(imageData, 0, 0);
+
+      // Film grain overlay
+      if (grain > 0) {
+        const grainData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const gd = grainData.data;
+        for (let i = 0; i < gd.length; i += 4) {
+          if (gd[i + 3] === 0) continue;
+          const noise = (Math.random() - 0.5) * grain * 80;
+          gd[i] = Math.max(0, Math.min(255, gd[i] + noise));
+          gd[i + 1] = Math.max(0, Math.min(255, gd[i + 1] + noise));
+          gd[i + 2] = Math.max(0, Math.min(255, gd[i + 2] + noise));
+        }
+        ctx.putImageData(grainData, 0, 0);
+      }
+
+      // Vignette overlay
+      if (vignette > 0) {
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        const maxR = Math.sqrt(cx * cx + cy * cy);
+        const gradient = ctx.createRadialGradient(cx, cy, maxR * 0.35, cx, cy, maxR);
+        gradient.addColorStop(0, `rgba(0,0,0,0)`);
+        gradient.addColorStop(1, `rgba(0,0,0,${vignette * 0.7})`);
+        ctx.fillStyle = gradient;
+        ctx.globalCompositeOperation = "multiply";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.globalCompositeOperation = "source-over";
+      }
+
       resolve(canvas.toDataURL("image/png"));
     };
     img.onerror = () => reject(new Error("Failed to load image"));

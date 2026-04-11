@@ -94,21 +94,20 @@ export function enhanceImageCanvas(
         const channelSpread = maxChannel - minChannel;
 
         // Wider neutral detection to prevent greys/near-whites getting tinted
-        const isShadowNeutral = l < 0.35 && channelSpread < 30;
+        const isShadowNeutral = l < 0.25 && channelSpread < 18;
         const isHighlightNeutral =
-          (l > 0.65 && avgChannel > 180 && channelSpread < 30) ||
-          (l > 0.80 && channelSpread < 45) ||
-          (l > 0.90 && channelSpread < 60);
+          (l > 0.80 && avgChannel > 210 && channelSpread < 20) ||
+          (l > 0.90 && channelSpread < 35);
         // Also catch mid-range greys (e.g. concrete, metal textures)
-        const isMidGrey = s < 0.15 && channelSpread < 35;
-        const isNeutral = s < 0.10 || isShadowNeutral || isHighlightNeutral || isMidGrey;
+        const isMidGrey = s < 0.08 && channelSpread < 18;
+        const isNeutral = s < 0.06 || isShadowNeutral || isHighlightNeutral || isMidGrey;
 
         // Gradual neutrality factor: even pixels that aren't fully neutral get reduced
         // boost when they're close to neutral (prevents spots on textured greys)
         // Use a smooth ramp instead of a hard cutoff to avoid grainy transitions
-        const rawNeutralityFactor = Math.min(1, Math.max(0, (channelSpread - 20) / 50));
+        const rawNeutralityFactor = Math.min(1, Math.max(0, (channelSpread - 12) / 35));
         // Also factor in HSL saturation for a smoother signal
-        const satFactor = Math.min(1, s / 0.18);
+        const satFactor = Math.min(1, s / 0.12);
         const neutralityFactor = isNeutral ? 0 : Math.min(rawNeutralityFactor, satFactor);
 
         // Protect earthy browns from shifting toward vivid reds/oranges.
@@ -139,14 +138,14 @@ export function enhanceImageCanvas(
         const boostedS = Math.min(1, s * (1 + effectiveSatBoost) );
         // Smoothly blend toward zero saturation for near-neutral pixels instead of hard cutoff
         const desatBlend = isShadowNeutral || isHighlightNeutral || isMidGrey
-          ? Math.min(1, Math.max(0, channelSpread / 20))
+          ? Math.min(1, Math.max(0.15, channelSpread / 15))
           : 1;
         const newS = boostedS * desatBlend;
 
         // Keep shadows dark, brighten highlights, and only lift midtones.
         let newL: number;
         if (l < 0.30) {
-          const shadowContrast = contrastBoost * (isEarthTone ? 0.8 : 1.35);
+          const shadowContrast = contrastBoost * (isEarthTone ? 0.6 : 0.9);
           newL = Math.max(0, l + (l - 0.5) * shadowContrast);
         } else if (l > 0.78) {
           newL = Math.min(1, l + (1 - l) * 0.45);

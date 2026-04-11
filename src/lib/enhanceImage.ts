@@ -116,6 +116,29 @@ export function enhanceImageCanvas(
           continue;
         }
 
+        // Selective color: desaturate everything except the preserved hue range
+        if (preserveHue) {
+          const hueDeg = h * 360;
+          const [hMin, hMax] = preserveHue;
+          const inRange = hMin <= hMax
+            ? (hueDeg >= hMin && hueDeg <= hMax)
+            : (hueDeg >= hMin || hueDeg <= hMax); // wraps around 360
+
+          if (inRange && s > 0.08) {
+            // Keep color — apply mild saturation boost
+            const boostedS = Math.min(1, s * (1 + saturationBoost * 0.5));
+            const newL = Math.max(0, Math.min(1, l + (l - 0.5) * contrastBoost * 0.3 + brightnessBoost * 0.3));
+            const [r, g, b] = hslToRgb(h, boostedS, newL);
+            data[i] = r; data[i + 1] = g; data[i + 2] = b;
+          } else {
+            // Desaturate to B&W with contrast
+            const newL = Math.max(0, Math.min(1, l + (l - 0.5) * contrastBoost * 0.4));
+            const [r, g, b] = hslToRgb(h, 0, newL);
+            data[i] = r; data[i + 1] = g; data[i + 2] = b;
+          }
+          continue;
+        }
+
         const hueDegrees = h * 360;
         
         // Treat near-neutral shadows/highlights as neutral so they stay black/white.

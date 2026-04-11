@@ -62,4 +62,14 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
       preserveHue: [80, 160],
     },
   },
+  {
+    id: "comic-noir",
+    name: "Comic Noir",
+    description: "High-contrast monochrome, ink wash style, heavy shadows, film noir lighting",
+    options: {
+      saturationBoost: -1,
+      brightnessBoost: -0.10,
+      contrastBoost: 0.85,
+    },
+  },
 ];

@@ -50,6 +50,7 @@ export interface EnhanceOptions {
   contrastBoost: number;    // 0 to 1, how much to increase contrast
   grain?: number;           // 0 to 1, film grain intensity
   vignette?: number;        // 0 to 1, vignette darkness
+  warmShift?: number;       // 0 to 1, warm color temperature shift
 }
 
 const DEFAULT_OPTIONS: EnhanceOptions = {

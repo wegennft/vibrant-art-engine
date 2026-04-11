@@ -88,14 +88,17 @@ export function enhanceImageCanvas(
         const minChannel = Math.min(data[i], data[i + 1], data[i + 2]);
         const channelSpread = maxChannel - minChannel;
         const isShadowNeutral = l < 0.32 && channelSpread < 24;
-        const isHighlightNeutral = l > 0.82 && channelSpread < 24;
+        const isHighlightNeutral = l > 0.78 && channelSpread < 30;
         const isNeutral = s < 0.08 || isShadowNeutral || isHighlightNeutral;
 
         // Fade vibrancy in gradually for darker pixels so blacks never pick up tint.
+        // Fade out vibrancy for very bright pixels so whites don't pick up blue tint.
         const darkFade = l < 0.35 ? Math.max(0, (l - 0.18) / 0.17) : 1;
-        const effectiveSatBoost = isNeutral ? 0 : saturationBoost * darkFade;
+        const lightFade = l > 0.75 ? Math.max(0, (1 - l) / 0.25) : 1;
+        const effectiveSatBoost = isNeutral ? 0 : saturationBoost * darkFade * lightFade;
         const boostedS = Math.min(1, s + effectiveSatBoost * (1 - s));
-        const newS = isShadowNeutral || isHighlightNeutral ? 0 : boostedS;
+        // Force neutral pixels to zero saturation so they stay pure black/white
+        const newS = (isShadowNeutral || isHighlightNeutral) ? 0 : boostedS;
 
         // Keep shadows dark (no brightness lift), brighten highlights, and only lift midtones.
         let newL: number;

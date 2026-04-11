@@ -58,4 +58,14 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
       contrastBoost: 0.35,
     },
   },
+  {
+    id: "1990s-cartoon",
+    name: "1990's",
+    description: "High-saturation, high-contrast pop inspired by 90s cel-animated cartoons — bold, punchy, Nickelodeon vibes",
+    options: {
+      saturationBoost: 0.92,
+      brightnessBoost: 0.06,
+      contrastBoost: 0.45,
+    },
+  },
 ];

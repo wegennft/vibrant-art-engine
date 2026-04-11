@@ -45,9 +45,11 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
 }
 
 export interface EnhanceOptions {
-  saturationBoost: number;  // 0 to 1, how much to increase saturation
-  brightnessBoost: number;  // 0 to 1, how much to increase lightness
+  saturationBoost: number;  // -1 to 1, negative = desaturate
+  brightnessBoost: number;  // -1 to 1, how much to adjust lightness
   contrastBoost: number;    // 0 to 1, how much to increase contrast
+  grain?: number;           // 0 to 1, film grain intensity
+  vignette?: number;        // 0 to 1, vignette darkness
 }
 
 const DEFAULT_OPTIONS: EnhanceOptions = {

@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";
 import BeforeAfterCard from "@/components/BeforeAfterCard";
+import EnhancePresetTabs from "@/components/EnhancePresetTabs";
 import { enhanceImageCanvas } from "@/lib/enhanceImage";
+import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
 
 interface ImageItem {
   id: string;
@@ -26,6 +28,7 @@ const fileToBase64 = (file: File): Promise<string> =>
 const Index = () => {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isEnhancingAll, setIsEnhancingAll] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState(ENHANCE_PRESETS[0].id);
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
     const newImages: ImageItem[] = await Promise.all(
@@ -57,7 +60,8 @@ const Index = () => {
       }));
 
     try {
-      const enhanced = await enhanceImageCanvas(image!.originalSrc);
+      const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
+      const enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options);
 
       setImages((prev) =>
         prev.map((img) =>
@@ -78,7 +82,7 @@ const Index = () => {
       );
       toast.error(message);
     }
-  }, [images]);
+  }, [images, selectedPreset]);
 
   const enhanceAll = useCallback(async () => {
     const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);
@@ -140,7 +144,18 @@ const Index = () => {
           isProcessing={isEnhancingAll}
         />
 
-        {/* Controls */}
+        {/* Enhancement Presets */}
+        <EnhancePresetTabs
+          selectedPreset={selectedPreset}
+          onPresetChange={(id) => {
+            setSelectedPreset(id);
+            // Clear enhanced results when switching presets
+            setImages((prev) => prev.map((img) => ({ ...img, enhancedSrc: null, error: undefined })));
+          }}
+          disabled={isEnhancingAll}
+        />
+
+
         {images.length > 0 && (
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">

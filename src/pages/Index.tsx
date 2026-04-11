@@ -95,15 +95,21 @@ const Index = () => {
     toast.success("All images enhanced!");
   }, [images, enhanceImage]);
 
-  const downloadAll = useCallback(() => {
-    images.forEach((img) => {
-      if (img.enhancedSrc) {
-        const a = document.createElement("a");
-        a.href = img.enhancedSrc;
-        a.download = `enhanced_${img.fileName}`;
-        a.click();
+  const downloadAll = useCallback(async () => {
+    const enhanced = images.filter((img) => img.enhancedSrc);
+    for (let i = 0; i < enhanced.length; i++) {
+      const img = enhanced[i];
+      const a = document.createElement("a");
+      a.href = img.enhancedSrc!;
+      a.download = `enhanced_${img.fileName}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      if (i < enhanced.length - 1) {
+        await new Promise((r) => setTimeout(r, 300));
       }
-    });
+    }
+    toast.success(`Downloaded ${enhanced.length} images`);
   }, [images]);
 
   const enhancedCount = images.filter((img) => img.enhancedSrc).length;

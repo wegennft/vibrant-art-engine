@@ -62,7 +62,8 @@ const DEFAULT_OPTIONS: EnhanceOptions = {
 
 export function enhanceImageCanvas(
   imageSrc: string,
-  options: Partial<EnhanceOptions> = {}
+  options: Partial<EnhanceOptions> = {},
+  signal?: AbortSignal
 ): Promise<string> {
   const { saturationBoost, brightnessBoost, contrastBoost, grain = 0, vignette = 0, warmShift = 0, preserveHue } = { ...DEFAULT_OPTIONS, ...options };
 

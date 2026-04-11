@@ -73,6 +73,7 @@ const Index = () => {
       );
       toast.success(`Enhanced ${image?.fileName}`);
     } catch (err: any) {
+      if (err?.name === "AbortError") return;
       const message = err?.message || "Failed to enhance image";
       setImages((prev) =>
         prev.map((img) =>
@@ -92,13 +93,32 @@ const Index = () => {
       return;
     }
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setIsEnhancingAll(true);
     for (const img of unenhanced) {
+      if (controller.signal.aborted) break;
       await enhanceImage(img.id);
     }
     setIsEnhancingAll(false);
-    toast.success("All images enhanced!");
+    abortControllerRef.current = null;
+    if (!controller.signal.aborted) {
+      toast.success("All images enhanced!");
+    }
   }, [images, enhanceImage]);
+
+  const stopEnhancing = useCallback(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setIsEnhancingAll(false);
+    // Reset any currently processing images
+    setImages((prev) =>
+      prev.map((img) =>
+        img.isProcessing ? { ...img, isProcessing: false } : img
+      )
+    );
+    toast.info("Enhancement stopped");
+  }, []);
 
   const downloadAll = useCallback(async () => {
     const enhanced = images.filter((img) => img.enhancedSrc);

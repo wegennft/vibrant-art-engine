@@ -91,19 +91,28 @@ export function enhanceImageCanvas(
         const minChannel = Math.min(sourceR, sourceG, sourceB);
         const avgChannel = (sourceR + sourceG + sourceB) / 3;
         const channelSpread = maxChannel - minChannel;
-        const isShadowNeutral = l < 0.32 && channelSpread < 24;
+
+        // Wider neutral detection to prevent greys/near-whites getting tinted
+        const isShadowNeutral = l < 0.35 && channelSpread < 30;
         const isHighlightNeutral =
-          (l > 0.65 && avgChannel > 180 && channelSpread < 50) ||
-          (l > 0.75 && minChannel > 170 && channelSpread < 65) ||
-          (l > 0.85 && channelSpread < 80);
-        const isNeutral = s < 0.08 || isShadowNeutral || isHighlightNeutral;
+          (l > 0.55 && avgChannel > 150 && channelSpread < 55) ||
+          (l > 0.65 && minChannel > 140 && channelSpread < 70) ||
+          (l > 0.75 && channelSpread < 85) ||
+          (l > 0.85 && channelSpread < 100);
+        // Also catch mid-range greys (e.g. concrete, metal textures)
+        const isMidGrey = s < 0.15 && channelSpread < 35;
+        const isNeutral = s < 0.10 || isShadowNeutral || isHighlightNeutral || isMidGrey;
+
+        // Gradual neutrality factor: even pixels that aren't fully neutral get reduced
+        // boost when they're close to neutral (prevents spots on textured greys)
+        const neutralityFactor = isNeutral ? 0 : Math.min(1, Math.max(0, (channelSpread - 25) / 40));
 
         // Fade vibrancy out more aggressively near black and near white.
-        const darkFade = l < 0.38 ? Math.max(0, (l - 0.20) / 0.18) : 1;
-        const lightFade = l > 0.60 ? Math.max(0, (0.88 - l) / 0.28) : 1;
-        const effectiveSatBoost = isNeutral ? 0 : saturationBoost * darkFade * lightFade;
+        const darkFade = l < 0.40 ? Math.max(0, (l - 0.18) / 0.22) : 1;
+        const lightFade = l > 0.55 ? Math.max(0, (0.90 - l) / 0.35) : 1;
+        const effectiveSatBoost = saturationBoost * darkFade * lightFade * neutralityFactor;
         const boostedS = Math.min(1, s + effectiveSatBoost * (1 - s));
-        const newS = isShadowNeutral || isHighlightNeutral ? 0 : boostedS;
+        const newS = isShadowNeutral || isHighlightNeutral || isMidGrey ? 0 : boostedS;
 
         // Keep shadows dark, brighten highlights, and only lift midtones.
         let newL: number;
@@ -122,7 +131,7 @@ export function enhanceImageCanvas(
         let g: number;
         let b: number;
 
-        if (isShadowNeutral || isHighlightNeutral) {
+        if (isShadowNeutral || isHighlightNeutral || isMidGrey) {
           const neutral = Math.round(newL * 255);
           r = neutral;
           g = neutral;

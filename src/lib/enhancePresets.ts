@@ -38,14 +38,4 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
       contrastBoost: 0.45,
     },
   },
-  {
-    id: "cinematic",
-    name: "Cinematic",
-    description: "Neon-lit cyberpunk mood — deep blacks, electric highlights, moody saturated tones with cinematic contrast",
-    options: {
-      saturationBoost: 0.70,
-      brightnessBoost: -0.04,
-      contrastBoost: 0.55,
-    },
-  },
 ];

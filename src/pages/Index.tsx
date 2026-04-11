@@ -62,7 +62,7 @@ const Index = () => {
 
     try {
       const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
-      const enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options);
+      const enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
 
       setImages((prev) =>
         prev.map((img) =>

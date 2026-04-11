@@ -76,11 +76,42 @@ export function enhanceImageCanvas(
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
 
+      // B&W mode: full desaturation with dramatic contrast curve
+      const isBW = saturationBoost <= -1;
+
       for (let i = 0; i < data.length; i += 4) {
         const a = data[i + 3];
         if (a === 0) continue; // skip fully transparent pixels
 
         const [h, s, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+
+        if (isBW) {
+          // Full desaturation
+          const newS = 0;
+          // Dramatic S-curve for crushed blacks & piercing highlights
+          let newL: number;
+          if (l < 0.15) {
+            // Crush blacks hard
+            newL = l * 0.4;
+          } else if (l < 0.45) {
+            // Bold shadows — push darks down
+            newL = Math.max(0, l - (0.45 - l) * contrastBoost * 0.8);
+          } else if (l > 0.75) {
+            // Piercing highlights — push brights up aggressively
+            newL = Math.min(1, l + (l - 0.75) * contrastBoost * 1.5 + brightnessBoost);
+          } else {
+            // Midtones get moderate contrast
+            newL = l + (l - 0.5) * contrastBoost * 0.6;
+          }
+          newL = Math.max(0, Math.min(1, newL));
+
+          const [r, g, b] = hslToRgb(h, newS, newL);
+          data[i] = r;
+          data[i + 1] = g;
+          data[i + 2] = b;
+          continue;
+        }
+
         const hueDegrees = h * 360;
         
         // Treat near-neutral shadows/highlights as neutral so they stay black/white.
@@ -111,8 +142,6 @@ export function enhanceImageCanvas(
         const neutralityFactor = isNeutral ? 0 : Math.min(rawNeutralityFactor, satFactor);
 
         // Protect earthy browns from shifting toward vivid reds/oranges.
-        // Browns are typically darker warm hues with red leading, green supporting,
-        // and relatively restrained blue. They should get less saturation/contrast push.
         const isWarmHue = hueDegrees >= 8 && hueDegrees <= 55;
         const hasBrownChannelBalance = sourceR > sourceG && sourceG >= sourceB;
         const hasControlledBlue = sourceB <= sourceG * 0.92;
@@ -134,7 +163,6 @@ export function enhanceImageCanvas(
         const lightFade = l > 0.55 ? Math.max(0, (0.90 - l) / 0.35) : 1;
         const effectiveSatBoost = saturationBoost * darkFade * lightFade * neutralityFactor * brownProtection;
         // Proportional boost: multiply existing saturation rather than pushing toward 1.0
-        // This preserves the relative differences between shade variations
         const boostedS = Math.min(1, s * (1 + effectiveSatBoost) );
         // Smoothly blend toward zero saturation for near-neutral pixels instead of hard cutoff
         const desatBlend = isShadowNeutral || isHighlightNeutral || isMidGrey
@@ -153,15 +181,10 @@ export function enhanceImageCanvas(
           const contrastL = l + (l - 0.5) * contrastBoost * (isEarthTone ? 0.82 : 1);
           const clampedL = Math.max(0, Math.min(1, contrastL));
           const midtoneBrightness = l > 0.68 ? brightnessBoost * 0.35 : brightnessBoost * (isEarthTone ? 0.88 : 1);
-          // Proportional lightness lift to preserve tonal gradients
           newL = Math.min(1, clampedL * (1 + midtoneBrightness * 0.5) + midtoneBrightness * 0.3 * (1 - clampedL));
         }
 
-        let r: number;
-        let g: number;
-        let b: number;
-
-        [r, g, b] = hslToRgb(h, newS, newL);
+        const [r, g, b] = hslToRgb(h, newS, newL);
 
         data[i] = r;
         data[i + 1] = g;

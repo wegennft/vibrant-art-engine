@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { Sparkles, Download, Trash2 } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { Sparkles, Download, Trash2, StopCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";
@@ -29,6 +29,7 @@ const Index = () => {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isEnhancingAll, setIsEnhancingAll] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(ENHANCE_PRESETS[0].id);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
     const newImages: ImageItem[] = await Promise.all(
@@ -61,7 +62,7 @@ const Index = () => {
 
     try {
       const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
-      const enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options);
+      const enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
 
       setImages((prev) =>
         prev.map((img) =>
@@ -72,6 +73,7 @@ const Index = () => {
       );
       toast.success(`Enhanced ${image?.fileName}`);
     } catch (err: any) {
+      if (err?.name === "AbortError") return;
       const message = err?.message || "Failed to enhance image";
       setImages((prev) =>
         prev.map((img) =>
@@ -91,13 +93,32 @@ const Index = () => {
       return;
     }
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setIsEnhancingAll(true);
     for (const img of unenhanced) {
+      if (controller.signal.aborted) break;
       await enhanceImage(img.id);
     }
     setIsEnhancingAll(false);
-    toast.success("All images enhanced!");
+    abortControllerRef.current = null;
+    if (!controller.signal.aborted) {
+      toast.success("All images enhanced!");
+    }
   }, [images, enhanceImage]);
+
+  const stopEnhancing = useCallback(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setIsEnhancingAll(false);
+    // Reset any currently processing images
+    setImages((prev) =>
+      prev.map((img) =>
+        img.isProcessing ? { ...img, isProcessing: false } : img
+      )
+    );
+    toast.info("Enhancement stopped");
+  }, []);
 
   const downloadAll = useCallback(async () => {
     const enhanced = images.filter((img) => img.enhancedSrc);
@@ -189,13 +210,20 @@ const Index = () => {
                   Download All
                 </Button>
               )}
-              <Button
-                onClick={enhanceAll}
-                disabled={isEnhancingAll || images.every((i) => i.enhancedSrc)}
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                {isEnhancingAll ? "Enhancing..." : "Enhance All"}
-              </Button>
+              {isEnhancingAll ? (
+                <Button variant="destructive" onClick={stopEnhancing}>
+                  <StopCircle className="w-4 h-4 mr-2" />
+                  Stop
+                </Button>
+              ) : (
+                <Button
+                  onClick={enhanceAll}
+                  disabled={images.every((i) => i.enhancedSrc)}
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Enhance All
+                </Button>
+              )}
             </div>
           </div>
         )}

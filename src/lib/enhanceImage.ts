@@ -93,13 +93,14 @@ export function enhanceImageCanvas(
         const channelSpread = maxChannel - minChannel;
         const isShadowNeutral = l < 0.32 && channelSpread < 24;
         const isHighlightNeutral =
-          (l > 0.72 && avgChannel > 205 && channelSpread < 42) ||
-          (l > 0.80 && minChannel > 185 && channelSpread < 56);
-        const isNeutral = s < 0.06 || isShadowNeutral || isHighlightNeutral;
+          (l > 0.65 && avgChannel > 180 && channelSpread < 50) ||
+          (l > 0.75 && minChannel > 170 && channelSpread < 65) ||
+          (l > 0.85 && channelSpread < 80);
+        const isNeutral = s < 0.08 || isShadowNeutral || isHighlightNeutral;
 
         // Fade vibrancy out more aggressively near black and near white.
         const darkFade = l < 0.38 ? Math.max(0, (l - 0.20) / 0.18) : 1;
-        const lightFade = l > 0.68 ? Math.max(0, (0.92 - l) / 0.24) : 1;
+        const lightFade = l > 0.60 ? Math.max(0, (0.88 - l) / 0.28) : 1;
         const effectiveSatBoost = isNeutral ? 0 : saturationBoost * darkFade * lightFade;
         const boostedS = Math.min(1, s + effectiveSatBoost * (1 - s));
         const newS = isShadowNeutral || isHighlightNeutral ? 0 : boostedS;

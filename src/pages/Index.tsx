@@ -1,10 +1,10 @@
 import { useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Sparkles, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";
 import BeforeAfterCard from "@/components/BeforeAfterCard";
+import { enhanceImageCanvas } from "@/lib/enhanceImage";
 
 interface ImageItem {
   id: string;
@@ -57,16 +57,12 @@ const Index = () => {
       }));
 
     try {
-      const { data, error } = await supabase.functions.invoke("enhance-image", {
-        body: { imageBase64: image?.originalSrc, fileName: image?.fileName },
-      });
-
-      if (error) throw error;
+      const enhanced = await enhanceImageCanvas(image!.originalSrc);
 
       setImages((prev) =>
         prev.map((img) =>
           img.id === imageId
-            ? { ...img, enhancedSrc: data.enhancedImage, isProcessing: false }
+            ? { ...img, enhancedSrc: enhanced, isProcessing: false }
             : img
         )
       );

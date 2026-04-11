@@ -144,7 +144,18 @@ const Index = () => {
           isProcessing={isEnhancingAll}
         />
 
-        {/* Controls */}
+        {/* Enhancement Presets */}
+        <EnhancePresetTabs
+          selectedPreset={selectedPreset}
+          onPresetChange={(id) => {
+            setSelectedPreset(id);
+            // Clear enhanced results when switching presets
+            setImages((prev) => prev.map((img) => ({ ...img, enhancedSrc: null, error: undefined })));
+          }}
+          disabled={isEnhancingAll}
+        />
+
+
         {images.length > 0 && (
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">

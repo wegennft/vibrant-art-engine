@@ -138,6 +138,13 @@ const Index = () => {
       </header>
 
       <main className="container max-w-6xl mx-auto py-8 px-4 space-y-8">
+        {/* Hero Title */}
+        <div className="text-center py-6">
+          <h2 className="font-graffiti text-5xl md:text-7xl text-accent drop-shadow-[0_0_30px_hsl(45,90%,55%,0.4)]">
+            Art Upgrader
+          </h2>
+        </div>
+
         {/* Uploader */}
         <ImageUploader
           onImagesSelected={handleImagesSelected}

@@ -26,6 +26,7 @@ const fileToBase64 = (file: File): Promise<string> =>
 const Index = () => {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isEnhancingAll, setIsEnhancingAll] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState(ENHANCE_PRESETS[0].id);
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
     const newImages: ImageItem[] = await Promise.all(
@@ -57,7 +58,8 @@ const Index = () => {
       }));
 
     try {
-      const enhanced = await enhanceImageCanvas(image!.originalSrc);
+      const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
+      const enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options);
 
       setImages((prev) =>
         prev.map((img) =>
@@ -78,7 +80,7 @@ const Index = () => {
       );
       toast.error(message);
     }
-  }, [images]);
+  }, [images, selectedPreset]);
 
   const enhanceAll = useCallback(async () => {
     const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);

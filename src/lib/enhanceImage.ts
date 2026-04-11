@@ -51,6 +51,7 @@ export interface EnhanceOptions {
   grain?: number;           // 0 to 1, film grain intensity
   vignette?: number;        // 0 to 1, vignette darkness
   warmShift?: number;       // 0 to 1, warm color temperature shift
+  preserveHue?: [number, number]; // [min, max] hue range in degrees to keep colored, rest goes B&W
 }
 
 const DEFAULT_OPTIONS: EnhanceOptions = {
@@ -63,7 +64,7 @@ export function enhanceImageCanvas(
   imageSrc: string,
   options: Partial<EnhanceOptions> = {}
 ): Promise<string> {
-  const { saturationBoost, brightnessBoost, contrastBoost, grain = 0, vignette = 0, warmShift = 0 } = { ...DEFAULT_OPTIONS, ...options };
+  const { saturationBoost, brightnessBoost, contrastBoost, grain = 0, vignette = 0, warmShift = 0, preserveHue } = { ...DEFAULT_OPTIONS, ...options };
 
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -112,6 +113,29 @@ export function enhanceImageCanvas(
           data[i] = r;
           data[i + 1] = g;
           data[i + 2] = b;
+          continue;
+        }
+
+        // Selective color: desaturate everything except the preserved hue range
+        if (preserveHue) {
+          const hueDeg = h * 360;
+          const [hMin, hMax] = preserveHue;
+          const inRange = hMin <= hMax
+            ? (hueDeg >= hMin && hueDeg <= hMax)
+            : (hueDeg >= hMin || hueDeg <= hMax); // wraps around 360
+
+          if (inRange && s > 0.08) {
+            // Keep color — apply mild saturation boost
+            const boostedS = Math.min(1, s * (1 + saturationBoost * 0.5));
+            const newL = Math.max(0, Math.min(1, l + (l - 0.5) * contrastBoost * 0.3 + brightnessBoost * 0.3));
+            const [r, g, b] = hslToRgb(h, boostedS, newL);
+            data[i] = r; data[i + 1] = g; data[i + 2] = b;
+          } else {
+            // Desaturate to B&W with contrast
+            const newL = Math.max(0, Math.min(1, l + (l - 0.5) * contrastBoost * 0.4));
+            const [r, g, b] = hslToRgb(h, 0, newL);
+            data[i] = r; data[i + 1] = g; data[i + 2] = b;
+          }
           continue;
         }
 

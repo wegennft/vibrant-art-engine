@@ -131,7 +131,7 @@ export function enhanceImageCanvas(
         let g: number;
         let b: number;
 
-        if (isShadowNeutral || isHighlightNeutral) {
+        if (isShadowNeutral || isHighlightNeutral || isMidGrey) {
           const neutral = Math.round(newL * 255);
           r = neutral;
           g = neutral;

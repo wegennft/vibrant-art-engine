@@ -1,16 +1,195 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Sparkles, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import ImageUploader from "@/components/ImageUploader";
+import BeforeAfterCard from "@/components/BeforeAfterCard";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+interface ImageItem {
+  id: string;
+  fileName: string;
+  originalSrc: string;
+  enhancedSrc: string | null;
+  isProcessing: boolean;
+  error?: string;
+}
+
+const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+const Index = () => {
+  const [images, setImages] = useState<ImageItem[]>([]);
+  const [isEnhancingAll, setIsEnhancingAll] = useState(false);
+
+  const handleImagesSelected = useCallback(async (files: File[]) => {
+    const newImages: ImageItem[] = await Promise.all(
+      files.map(async (file) => ({
+        id: crypto.randomUUID(),
+        fileName: file.name,
+        originalSrc: await fileToBase64(file),
+        enhancedSrc: null,
+        isProcessing: false,
+      }))
+    );
+    setImages((prev) => [...prev, ...newImages]);
+  }, []);
+
+  const enhanceImage = useCallback(async (imageId: string) => {
+    setImages((prev) =>
+      prev.map((img) =>
+        img.id === imageId ? { ...img, isProcessing: true, error: undefined } : img
+      )
+    );
+
+    const image = images.find((img) => img.id === imageId) || 
+      (await new Promise<ImageItem>((resolve) => {
+        setImages((prev) => {
+          const found = prev.find((img) => img.id === imageId);
+          if (found) resolve(found);
+          return prev;
+        });
+      }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke("enhance-image", {
+        body: { imageBase64: image?.originalSrc, fileName: image?.fileName },
+      });
+
+      if (error) throw error;
+
+      setImages((prev) =>
+        prev.map((img) =>
+          img.id === imageId
+            ? { ...img, enhancedSrc: data.enhancedImage, isProcessing: false }
+            : img
+        )
+      );
+      toast.success(`Enhanced ${image?.fileName}`);
+    } catch (err: any) {
+      const message = err?.message || "Failed to enhance image";
+      setImages((prev) =>
+        prev.map((img) =>
+          img.id === imageId
+            ? { ...img, isProcessing: false, error: message }
+            : img
+        )
+      );
+      toast.error(message);
+    }
+  }, [images]);
+
+  const enhanceAll = useCallback(async () => {
+    const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);
+    if (unenhanced.length === 0) {
+      toast.info("All images already enhanced!");
+      return;
+    }
+
+    setIsEnhancingAll(true);
+    for (const img of unenhanced) {
+      await enhanceImage(img.id);
+    }
+    setIsEnhancingAll(false);
+    toast.success("All images enhanced!");
+  }, [images, enhanceImage]);
+
+  const downloadAll = useCallback(() => {
+    images.forEach((img) => {
+      if (img.enhancedSrc) {
+        const a = document.createElement("a");
+        a.href = img.enhancedSrc;
+        a.download = `enhanced_${img.fileName}`;
+        a.click();
+      }
+    });
+  }, [images]);
+
+  const enhancedCount = images.filter((img) => img.enhancedSrc).length;
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border">
+        <div className="container max-w-6xl mx-auto py-6 px-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Art Upgrader</h1>
+              <p className="text-sm text-muted-foreground">
+                Make your NFT trait art brighter & more vibrant
+              </p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="container max-w-6xl mx-auto py-8 px-4 space-y-8">
+        {/* Uploader */}
+        <ImageUploader
+          onImagesSelected={handleImagesSelected}
+          isProcessing={isEnhancingAll}
+        />
+
+        {/* Controls */}
+        {images.length > 0 && (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {images.length} image{images.length !== 1 ? "s" : ""} •{" "}
+              {enhancedCount} enhanced
+            </p>
+            <div className="flex gap-3">
+              {enhancedCount > 0 && (
+                <Button variant="outline" onClick={downloadAll}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Download All
+                </Button>
+              )}
+              <Button
+                onClick={enhanceAll}
+                disabled={isEnhancingAll || images.every((i) => i.enhancedSrc)}
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                {isEnhancingAll ? "Enhancing..." : "Enhance All"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Grid */}
+        {images.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {images.map((img) => (
+              <BeforeAfterCard
+                key={img.id}
+                fileName={img.fileName}
+                originalSrc={img.originalSrc}
+                enhancedSrc={img.enhancedSrc}
+                isProcessing={img.isProcessing}
+                error={img.error}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {images.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">
+              Upload your NFT trait images to get started
+            </p>
+          </div>
+        )}
+      </main>
     </div>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;

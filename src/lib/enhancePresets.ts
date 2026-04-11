@@ -51,4 +51,15 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
       warmShift: 0.35,
     },
   },
+  {
+    id: "green-pop",
+    name: "Green Pop",
+    description: "Black & white with only green shades preserved in full color",
+    options: {
+      saturationBoost: 0,
+      brightnessBoost: 0.05,
+      contrastBoost: 0.20,
+      preserveHue: [80, 160],
+    },
+  },
 ];

@@ -55,20 +55,33 @@ const BeforeAfterCard = ({
       </div>
 
       <div
-        className="relative aspect-square select-none cursor-col-resize"
+        className="relative select-none cursor-col-resize"
+        style={{ width: "100%", aspectRatio: "1 / 1" }}
         onMouseDown={() => enhancedSrc && setIsDragging(true)}
         onMouseUp={() => setIsDragging(false)}
         onMouseLeave={() => setIsDragging(false)}
         onMouseMove={handleMouseMove}
       >
-        {/* Original (full) */}
+        {/* Checkerboard background for transparency */}
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              "linear-gradient(45deg, hsl(var(--muted)) 25%, transparent 25%), linear-gradient(-45deg, hsl(var(--muted)) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, hsl(var(--muted)) 75%), linear-gradient(-45deg, transparent 75%, hsl(var(--muted)) 75%)",
+            backgroundSize: "20px 20px",
+            backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0px",
+          }}
+        />
+
+        {/* Original (full) — contain within the 1:1 frame */}
         <img
           src={originalSrc}
           alt={`Original ${fileName}`}
-          className="absolute inset-0 w-full h-full object-cover bg-secondary"
+          className="absolute inset-0 w-full h-full object-contain"
+          draggable={false}
         />
 
-        {/* Enhanced (clipped) */}
+        {/* Enhanced (clipped) — same contain positioning */}
         {enhancedSrc && (
           <div
             className="absolute inset-0 overflow-hidden"
@@ -77,7 +90,8 @@ const BeforeAfterCard = ({
             <img
               src={enhancedSrc}
               alt={`Enhanced ${fileName}`}
-              className="absolute inset-0 w-full h-full object-cover bg-secondary"
+              className="absolute inset-0 w-full h-full object-contain"
+              draggable={false}
             />
           </div>
         )}

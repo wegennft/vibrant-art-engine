@@ -86,8 +86,12 @@ export function enhanceImageCanvas(
         // Near-black (l < 0.15) or near-white (l > 0.85) or low-saturation (s < 0.1)
         // pixels have unreliable hues — boosting saturation would turn black into
         // brown/blue or white into tinted colors.
-        const isNeutral = s < 0.1 || l < 0.15 || l > 0.85;
-        const newS = isNeutral ? s : Math.min(1, s + saturationBoost * (1 - s));
+        // Protect darks and near-neutrals from saturation boost.
+        // Pixels below L=0.30 get a gradual fade-in of the boost (0 at L≤0.10, full at L≥0.30).
+        const isNeutral = s < 0.08 || l < 0.10 || l > 0.85;
+        const darkFade = l < 0.30 ? Math.max(0, (l - 0.10) / 0.20) : 1;
+        const effectiveSatBoost = isNeutral ? 0 : saturationBoost * darkFade;
+        const newS = Math.min(1, s + effectiveSatBoost * (1 - s));
         
         // Push darks darker and lights brighter
         let newL: number;

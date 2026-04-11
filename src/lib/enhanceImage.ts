@@ -82,23 +82,27 @@ export function enhanceImageCanvas(
 
         const [h, s, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
         
-        // Only boost saturation on pixels that already have meaningful color.
-        // Near-black (l < 0.15) or near-white (l > 0.85) or low-saturation (s < 0.1)
-        // pixels have unreliable hues — boosting saturation would turn black into
-        // brown/blue or white into tinted colors.
-        // Protect darks and near-neutrals from saturation boost.
-        // Pixels below L=0.30 get a gradual fade-in of the boost (0 at L≤0.10, full at L≥0.30).
-        const isNeutral = s < 0.08 || l < 0.10 || l > 0.85;
-        const darkFade = l < 0.30 ? Math.max(0, (l - 0.10) / 0.20) : 1;
+        // Treat near-neutral shadows/highlights as neutral so they stay black/white.
+        // HSL saturation is noisy in very dark pixels, so also inspect raw channel spread.
+        const maxChannel = Math.max(data[i], data[i + 1], data[i + 2]);
+        const minChannel = Math.min(data[i], data[i + 1], data[i + 2]);
+        const channelSpread = maxChannel - minChannel;
+        const isShadowNeutral = l < 0.32 && channelSpread < 24;
+        const isHighlightNeutral = l > 0.82 && channelSpread < 24;
+        const isNeutral = s < 0.08 || isShadowNeutral || isHighlightNeutral;
+
+        // Fade vibrancy in gradually for darker pixels so blacks never pick up tint.
+        const darkFade = l < 0.35 ? Math.max(0, (l - 0.18) / 0.17) : 1;
         const effectiveSatBoost = isNeutral ? 0 : saturationBoost * darkFade;
-        const newS = Math.min(1, s + effectiveSatBoost * (1 - s));
-        
-        // Push darks darker and lights brighter
+        const boostedS = Math.min(1, s + effectiveSatBoost * (1 - s));
+        const newS = isShadowNeutral || isHighlightNeutral ? 0 : boostedS;
+
+        // Keep shadows dark (no brightness lift), brighten highlights, and only lift midtones.
         let newL: number;
-        if (l < 0.15) {
-          newL = l * 0.5; // darken blacks
+        if (l < 0.30) {
+          newL = Math.max(0, l + (l - 0.5) * (contrastBoost * 1.35));
         } else if (l > 0.85) {
-          newL = l + (1 - l) * 0.6; // brighten whites
+          newL = l + (1 - l) * 0.6;
         } else {
           const contrastL = l + (l - 0.5) * contrastBoost;
           const clampedL = Math.max(0, Math.min(1, contrastL));

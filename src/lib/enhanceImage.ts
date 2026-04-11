@@ -68,6 +68,7 @@ export function enhanceImageCanvas(
   const { saturationBoost, brightnessBoost, contrastBoost, grain = 0, vignette = 0, warmShift = 0, preserveHue } = { ...DEFAULT_OPTIONS, ...options };
 
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new DOMException("Aborted", "AbortError"));
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {

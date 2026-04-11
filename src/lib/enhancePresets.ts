@@ -28,4 +28,14 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
       contrastBoost: 0.50,
     },
   },
+  {
+    id: "bw-film-noir",
+    name: "B&W Film Noir",
+    description: "Cinematic still, moody shadows, low key lighting, grain texture, vignette",
+    options: {
+      saturationBoost: -1,
+      brightnessBoost: -0.05,
+      contrastBoost: 0.65,
+    },
+  },
 ];

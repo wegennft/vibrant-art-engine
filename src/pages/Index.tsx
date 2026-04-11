@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Sparkles, Download } from "lucide-react";
+import { Sparkles, Download, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";
@@ -142,6 +142,10 @@ const Index = () => {
               {enhancedCount} enhanced
             </p>
             <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setImages([])}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Clear All
+              </Button>
               {enhancedCount > 0 && (
                 <Button variant="outline" onClick={downloadAll}>
                   <Download className="w-4 h-4 mr-2" />

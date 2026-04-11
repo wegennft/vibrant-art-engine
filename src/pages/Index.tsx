@@ -125,10 +125,10 @@ const Index = () => {
         <div className="container max-w-6xl mx-auto py-6 px-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-primary" />
+              <Sparkles className="w-5 h-5 text-accent" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Art Upgrader</h1>
+              <h1 className="text-2xl font-graffiti text-primary">Art Upgrader</h1>
               <p className="text-sm text-muted-foreground">
                 Make your NFT trait art brighter & more vibrant
               </p>

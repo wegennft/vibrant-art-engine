@@ -18,4 +18,14 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
       contrastBoost: 0.20,
     },
   },
+  {
+    id: "bw",
+    name: "B&W",
+    description: "Crushed blacks, piercing highlights, bold shadows & hard lighting",
+    options: {
+      saturationBoost: -1,
+      brightnessBoost: 0.05,
+      contrastBoost: 0.50,
+    },
+  },
 ];

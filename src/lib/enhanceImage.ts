@@ -45,20 +45,22 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
 }
 
 export interface EnhanceOptions {
-  saturationBoost: number; // 0 to 1, how much to increase saturation (default 0.35)
-  brightnessBoost: number; // 0 to 1, how much to increase lightness (default 0.05)
+  saturationBoost: number;  // 0 to 1, how much to increase saturation
+  brightnessBoost: number;  // 0 to 1, how much to increase lightness
+  contrastBoost: number;    // 0 to 1, how much to increase contrast
 }
 
 const DEFAULT_OPTIONS: EnhanceOptions = {
-  saturationBoost: 0.50,
-  brightnessBoost: 0.08,
+  saturationBoost: 0.65,
+  brightnessBoost: 0.10,
+  contrastBoost: 0.15,
 };
 
 export function enhanceImageCanvas(
   imageSrc: string,
   options: Partial<EnhanceOptions> = {}
 ): Promise<string> {
-  const { saturationBoost, brightnessBoost } = { ...DEFAULT_OPTIONS, ...options };
+  const { saturationBoost, brightnessBoost, contrastBoost } = { ...DEFAULT_OPTIONS, ...options };
 
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -79,8 +81,11 @@ export function enhanceImageCanvas(
         if (a === 0) continue; // skip fully transparent pixels
 
         const [h, s, l] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
-        const newS = Math.min(1, s + saturationBoost * (1 - s)); // boost toward full saturation
-        const newL = Math.min(1, l + brightnessBoost * (1 - l)); // gentle brightness lift
+        const newS = Math.min(1, s + saturationBoost * (1 - s));
+        // Contrast: push light colors lighter, dark colors darker, then apply brightness
+        const contrastL = l + (l - 0.5) * contrastBoost;
+        const clampedL = Math.max(0, Math.min(1, contrastL));
+        const newL = Math.min(1, clampedL + brightnessBoost * (1 - clampedL));
         const [r, g, b] = hslToRgb(h, newS, newL);
 
         data[i] = r;

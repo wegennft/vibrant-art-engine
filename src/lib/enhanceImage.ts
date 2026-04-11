@@ -195,7 +195,19 @@ export function enhanceImageCanvas(
         // alpha unchanged — exact same transparency
       }
 
-      ctx.putImageData(imageData, 0, 0);
+      // Warm color temperature shift
+      if (warmShift > 0) {
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i + 3] === 0) continue;
+          // Boost reds/yellows, reduce blues for warm sunlight feel
+          data[i] = Math.min(255, data[i] + warmShift * 18);       // R up
+          data[i + 1] = Math.min(255, data[i + 1] + warmShift * 6); // G slight up
+          data[i + 2] = Math.max(0, data[i + 2] - warmShift * 14);  // B down
+        }
+        ctx.putImageData(imageData, 0, 0);
+      } else {
+        ctx.putImageData(imageData, 0, 0);
+      }
 
       // Film grain overlay
       if (grain > 0) {

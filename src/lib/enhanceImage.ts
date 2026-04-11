@@ -51,9 +51,9 @@ export interface EnhanceOptions {
 }
 
 const DEFAULT_OPTIONS: EnhanceOptions = {
-  saturationBoost: 0.80,
-  brightnessBoost: 0.12,
-  contrastBoost: 0.20,
+  saturationBoost: 0.55,
+  brightnessBoost: 0.10,
+  contrastBoost: 0.15,
 };
 
 export function enhanceImageCanvas(
@@ -134,7 +134,9 @@ export function enhanceImageCanvas(
         const darkFade = l < 0.40 ? Math.max(0, (l - 0.18) / 0.22) : 1;
         const lightFade = l > 0.55 ? Math.max(0, (0.90 - l) / 0.35) : 1;
         const effectiveSatBoost = saturationBoost * darkFade * lightFade * neutralityFactor * brownProtection;
-        const boostedS = Math.min(1, s + effectiveSatBoost * (1 - s));
+        // Proportional boost: multiply existing saturation rather than pushing toward 1.0
+        // This preserves the relative differences between shade variations
+        const boostedS = Math.min(1, s * (1 + effectiveSatBoost) );
         // Smoothly blend toward zero saturation for near-neutral pixels instead of hard cutoff
         const desatBlend = isShadowNeutral || isHighlightNeutral || isMidGrey
           ? Math.min(1, Math.max(0, channelSpread / 20))
@@ -147,12 +149,13 @@ export function enhanceImageCanvas(
           const shadowContrast = contrastBoost * (isEarthTone ? 0.8 : 1.35);
           newL = Math.max(0, l + (l - 0.5) * shadowContrast);
         } else if (l > 0.78) {
-          newL = Math.min(1, l + (1 - l) * 0.72);
+          newL = Math.min(1, l + (1 - l) * 0.45);
         } else {
           const contrastL = l + (l - 0.5) * contrastBoost * (isEarthTone ? 0.82 : 1);
           const clampedL = Math.max(0, Math.min(1, contrastL));
           const midtoneBrightness = l > 0.68 ? brightnessBoost * 0.35 : brightnessBoost * (isEarthTone ? 0.88 : 1);
-          newL = Math.min(1, clampedL + midtoneBrightness * (1 - clampedL));
+          // Proportional lightness lift to preserve tonal gradients
+          newL = Math.min(1, clampedL * (1 + midtoneBrightness * 0.5) + midtoneBrightness * 0.3 * (1 - clampedL));
         }
 
         let r: number;

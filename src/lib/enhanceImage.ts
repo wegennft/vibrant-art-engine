@@ -96,17 +96,20 @@ export function enhanceImageCanvas(
         // Wider neutral detection to prevent greys/near-whites getting tinted
         const isShadowNeutral = l < 0.35 && channelSpread < 30;
         const isHighlightNeutral =
-          (l > 0.55 && avgChannel > 150 && channelSpread < 55) ||
-          (l > 0.65 && minChannel > 140 && channelSpread < 70) ||
-          (l > 0.75 && channelSpread < 85) ||
-          (l > 0.85 && channelSpread < 100);
+          (l > 0.65 && avgChannel > 180 && channelSpread < 30) ||
+          (l > 0.80 && channelSpread < 45) ||
+          (l > 0.90 && channelSpread < 60);
         // Also catch mid-range greys (e.g. concrete, metal textures)
         const isMidGrey = s < 0.15 && channelSpread < 35;
         const isNeutral = s < 0.10 || isShadowNeutral || isHighlightNeutral || isMidGrey;
 
         // Gradual neutrality factor: even pixels that aren't fully neutral get reduced
         // boost when they're close to neutral (prevents spots on textured greys)
-        const neutralityFactor = isNeutral ? 0 : Math.min(1, Math.max(0, (channelSpread - 25) / 40));
+        // Use a smooth ramp instead of a hard cutoff to avoid grainy transitions
+        const rawNeutralityFactor = Math.min(1, Math.max(0, (channelSpread - 20) / 50));
+        // Also factor in HSL saturation for a smoother signal
+        const satFactor = Math.min(1, s / 0.18);
+        const neutralityFactor = isNeutral ? 0 : Math.min(rawNeutralityFactor, satFactor);
 
         // Protect earthy browns from shifting toward vivid reds/oranges.
         // Browns are typically darker warm hues with red leading, green supporting,
@@ -132,7 +135,11 @@ export function enhanceImageCanvas(
         const lightFade = l > 0.55 ? Math.max(0, (0.90 - l) / 0.35) : 1;
         const effectiveSatBoost = saturationBoost * darkFade * lightFade * neutralityFactor * brownProtection;
         const boostedS = Math.min(1, s + effectiveSatBoost * (1 - s));
-        const newS = isShadowNeutral || isHighlightNeutral || isMidGrey ? 0 : boostedS;
+        // Smoothly blend toward zero saturation for near-neutral pixels instead of hard cutoff
+        const desatBlend = isShadowNeutral || isHighlightNeutral || isMidGrey
+          ? Math.min(1, Math.max(0, channelSpread / 20))
+          : 1;
+        const newS = boostedS * desatBlend;
 
         // Keep shadows dark, brighten highlights, and only lift midtones.
         let newL: number;
@@ -152,14 +159,7 @@ export function enhanceImageCanvas(
         let g: number;
         let b: number;
 
-        if (isShadowNeutral || isHighlightNeutral || isMidGrey) {
-          const neutral = Math.round(newL * 255);
-          r = neutral;
-          g = neutral;
-          b = neutral;
-        } else {
-          [r, g, b] = hslToRgb(h, newS, newL);
-        }
+        [r, g, b] = hslToRgb(h, newS, newL);
 
         data[i] = r;
         data[i + 1] = g;

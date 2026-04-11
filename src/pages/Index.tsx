@@ -29,6 +29,7 @@ const Index = () => {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isEnhancingAll, setIsEnhancingAll] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(ENHANCE_PRESETS[0].id);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
     const newImages: ImageItem[] = await Promise.all(

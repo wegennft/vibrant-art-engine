@@ -51,9 +51,9 @@ export interface EnhanceOptions {
 }
 
 const DEFAULT_OPTIONS: EnhanceOptions = {
-  saturationBoost: 0.65,
-  brightnessBoost: 0.10,
-  contrastBoost: 0.15,
+  saturationBoost: 0.80,
+  brightnessBoost: 0.12,
+  contrastBoost: 0.20,
 };
 
 export function enhanceImageCanvas(

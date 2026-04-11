@@ -65,7 +65,7 @@ const BeforeAfterCard = ({
         <img
           src={originalSrc}
           alt={`Original ${fileName}`}
-          className="absolute inset-0 w-full h-full object-contain bg-secondary"
+          className="absolute inset-0 w-full h-full object-cover bg-secondary"
         />
 
         {/* Enhanced (clipped) */}
@@ -77,7 +77,7 @@ const BeforeAfterCard = ({
             <img
               src={enhancedSrc}
               alt={`Enhanced ${fileName}`}
-              className="absolute inset-0 w-full h-full object-contain bg-secondary"
+              className="absolute inset-0 w-full h-full object-cover bg-secondary"
             />
           </div>
         )}

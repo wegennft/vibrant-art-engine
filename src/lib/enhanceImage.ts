@@ -63,7 +63,7 @@ export function enhanceImageCanvas(
   imageSrc: string,
   options: Partial<EnhanceOptions> = {}
 ): Promise<string> {
-  const { saturationBoost, brightnessBoost, contrastBoost, grain = 0, vignette = 0 } = { ...DEFAULT_OPTIONS, ...options };
+  const { saturationBoost, brightnessBoost, contrastBoost, grain = 0, vignette = 0, warmShift = 0 } = { ...DEFAULT_OPTIONS, ...options };
 
   return new Promise((resolve, reject) => {
     const img = new Image();

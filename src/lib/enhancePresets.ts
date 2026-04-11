@@ -40,4 +40,15 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
       vignette: 0.6,
     },
   },
+  {
+    id: "fall-time",
+    name: "Fall Time",
+    description: "Warm sunlight, vibrant fall colors, burnt orange & hunter green tones",
+    options: {
+      saturationBoost: 0.65,
+      brightnessBoost: 0.08,
+      contrastBoost: 0.18,
+      warmShift: 0.35,
+    },
+  },
 ];

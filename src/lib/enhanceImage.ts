@@ -236,6 +236,38 @@ export function enhanceImageCanvas(
         ctx.putImageData(imageData, 0, 0);
       }
 
+      // Cyberpunk split-tone: magenta/purple shadows, cyan highlights, neon glow
+      if (cyberpunk > 0) {
+        const cpData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const cd = cpData.data;
+        const intensity = cyberpunk;
+        for (let i = 0; i < cd.length; i += 4) {
+          if (cd[i + 3] === 0) continue;
+          const r = cd[i], g = cd[i + 1], b = cd[i + 2];
+          // Luminance (perceptual)
+          const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+          // Shadow weight (peaks at dark), highlight weight (peaks at bright)
+          const shadowW = Math.pow(1 - lum, 1.4);
+          const highlightW = Math.pow(lum, 1.4);
+          // Magenta target for shadows (R+, B+, G-), cyan target for highlights (G+, B+, R-)
+          const magentaR = 40, magentaG = -25, magentaB = 70;
+          const cyanR = -35, cyanG = 30, cyanB = 55;
+          const dR = (shadowW * magentaR + highlightW * cyanR) * intensity;
+          const dG = (shadowW * magentaG + highlightW * cyanG) * intensity;
+          const dB = (shadowW * magentaB + highlightW * cyanB) * intensity;
+          cd[i] = Math.max(0, Math.min(255, r + dR));
+          cd[i + 1] = Math.max(0, Math.min(255, g + dG));
+          cd[i + 2] = Math.max(0, Math.min(255, b + dB));
+          // Neon glow: lift very bright pixels even more toward white-cyan
+          if (lum > 0.78) {
+            const glow = (lum - 0.78) * 4 * intensity;
+            cd[i + 1] = Math.min(255, cd[i + 1] + glow * 30);
+            cd[i + 2] = Math.min(255, cd[i + 2] + glow * 45);
+          }
+        }
+        ctx.putImageData(cpData, 0, 0);
+      }
+
       // Film grain overlay
       if (grain > 0) {
         const grainData = ctx.getImageData(0, 0, canvas.width, canvas.height);

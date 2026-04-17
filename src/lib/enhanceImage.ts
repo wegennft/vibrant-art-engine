@@ -52,6 +52,7 @@ export interface EnhanceOptions {
   vignette?: number;        // 0 to 1, vignette darkness
   warmShift?: number;       // 0 to 1, warm color temperature shift
   preserveHue?: [number, number]; // [min, max] hue range in degrees to keep colored, rest goes B&W
+  cyberpunk?: number;       // 0 to 1, cyberpunk neon split-tone (magenta shadows, cyan highlights)
 }
 
 const DEFAULT_OPTIONS: EnhanceOptions = {

@@ -19,16 +19,6 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
     },
   },
   {
-    id: "bw",
-    name: "B&W",
-    description: "Crushed blacks, piercing highlights, bold shadows & hard lighting",
-    options: {
-      saturationBoost: -1,
-      brightnessBoost: 0.05,
-      contrastBoost: 0.50,
-    },
-  },
-  {
     id: "bw-film-noir",
     name: "B&W Film Noir",
     description: "Cinematic still, moody shadows, low key lighting, grain texture, vignette",
@@ -60,28 +50,6 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
       brightnessBoost: 0.05,
       contrastBoost: 0.20,
       preserveHue: [80, 160],
-    },
-  },
-  {
-    id: "comic-noir",
-    name: "Comic Noir",
-    description: "High-contrast monochrome, ink wash style, heavy shadows, film noir lighting",
-    options: {
-      saturationBoost: -1,
-      brightnessBoost: -0.10,
-      contrastBoost: 0.85,
-    },
-  },
-  {
-    id: "cyberpunk",
-    name: "Cyberpunk",
-    description: "Neon magenta & cyan grading, glowing highlights, crushed shadows — same silhouette",
-    options: {
-      saturationBoost: 0.7,
-      brightnessBoost: 0.05,
-      contrastBoost: 0.45,
-      grain: 0.12,
-      cyberpunk: 0.85,
     },
   },
 ];

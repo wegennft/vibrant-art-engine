@@ -52,4 +52,16 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
       preserveHue: [80, 160],
     },
   },
+  {
+    id: "cyberpunk",
+    name: "Cyberpunk",
+    description: "Neon noir, dystopian aesthetic — vibrant magenta & cyan lighting, glossy metallic textures, holographic glow",
+    options: {
+      saturationBoost: 0.7,
+      brightnessBoost: 0.05,
+      contrastBoost: 0.45,
+      grain: 0.12,
+      cyberpunk: 0.85,
+    },
+  },
 ];

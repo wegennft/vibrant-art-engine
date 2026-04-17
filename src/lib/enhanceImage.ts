@@ -66,7 +66,7 @@ export function enhanceImageCanvas(
   options: Partial<EnhanceOptions> = {},
   signal?: AbortSignal
 ): Promise<string> {
-  const { saturationBoost, brightnessBoost, contrastBoost, grain = 0, vignette = 0, warmShift = 0, preserveHue } = { ...DEFAULT_OPTIONS, ...options };
+  const { saturationBoost, brightnessBoost, contrastBoost, grain = 0, vignette = 0, warmShift = 0, preserveHue, cyberpunk = 0 } = { ...DEFAULT_OPTIONS, ...options };
 
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new DOMException("Aborted", "AbortError"));

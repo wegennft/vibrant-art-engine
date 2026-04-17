@@ -72,4 +72,16 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
       contrastBoost: 0.85,
     },
   },
+  {
+    id: "cyberpunk",
+    name: "Cyberpunk",
+    description: "Neon magenta & cyan grading, glowing highlights, crushed shadows — same silhouette",
+    options: {
+      saturationBoost: 0.7,
+      brightnessBoost: 0.05,
+      contrastBoost: 0.45,
+      grain: 0.12,
+      cyberpunk: 0.85,
+    },
+  },
 ];

@@ -53,6 +53,8 @@ export interface EnhanceOptions {
   warmShift?: number;       // 0 to 1, warm color temperature shift
   preserveHue?: [number, number]; // [min, max] hue range in degrees to keep colored, rest goes B&W
   cyberpunk?: number;       // 0 to 1, cyberpunk neon split-tone (magenta shadows, cyan highlights)
+  aiGenerate?: boolean;     // use AI image generation via edge function
+  aiPrompt?: string;        // prompt for AI art generation
 }
 
 const DEFAULT_OPTIONS: EnhanceOptions = {

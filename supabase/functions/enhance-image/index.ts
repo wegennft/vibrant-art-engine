@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { imageBase64, fileName } = await req.json();
+    const { imageBase64, fileName, prompt: customPrompt } = await req.json();
 
     if (!imageBase64) {
       return new Response(
@@ -42,7 +42,7 @@ serve(async (req) => {
               content: [
                 {
                   type: "text",
-                  text: "This is a PNG image with transparent areas (alpha channel). STRICT RULES — violating ANY of these means failure: 1) Output a PNG at the EXACT same pixel dimensions. 2) Transparent pixels MUST stay fully transparent (alpha=0). NO background added. 3) DO NOT CHANGE ANY HUES. Do NOT introduce new colors. Do NOT shift colors (e.g. blue to purple, red to orange, green to teal). The ONLY modification allowed is increasing saturation and brightness of the EXISTING exact colors. Imagine converting each pixel to HSL, keeping H unchanged, and increasing S and L slightly. That is ALL you may do. 4) Do not redraw, reinterpret, or reimagine the artwork. Copy it pixel-perfectly with only saturation/brightness boosted. 5) No cropping, resizing, padding, borders, text, or watermarks. 6) Alpha channel must be identical to input. This is for NFT trait layers.",
+                  text: customPrompt || "This is a PNG image with transparent areas (alpha channel). STRICT RULES — violating ANY of these means failure: 1) Output a PNG at the EXACT same pixel dimensions. 2) Transparent pixels MUST stay fully transparent (alpha=0). NO background added. 3) DO NOT CHANGE ANY HUES. Do NOT introduce new colors. Do NOT shift colors (e.g. blue to purple, red to orange, green to teal). The ONLY modification allowed is increasing saturation and brightness of the EXISTING exact colors. Imagine converting each pixel to HSL, keeping H unchanged, and increasing S and L slightly. That is ALL you may do. 4) Do not redraw, reinterpret, or reimagine the artwork. Copy it pixel-perfectly with only saturation/brightness boosted. 5) No cropping, resizing, padding, borders, text, or watermarks. 6) Alpha channel must be identical to input. This is for NFT trait layers.",
                 },
                 {
                   type: "image_url",

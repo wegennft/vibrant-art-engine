@@ -7,6 +7,7 @@ import BeforeAfterCard from "@/components/BeforeAfterCard";
 import EnhancePresetTabs from "@/components/EnhancePresetTabs";
 import { enhanceImageCanvas } from "@/lib/enhanceImage";
 import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ImageItem {
   id: string;
@@ -62,7 +63,25 @@ const Index = () => {
 
     try {
       const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
-      const enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
+      let enhanced: string;
+
+      if (preset.options.aiGenerate) {
+        // Route through AI edge function
+        const { data, error } = await supabase.functions.invoke('enhance-image', {
+          body: {
+            imageBase64: image!.originalSrc,
+            fileName: image!.fileName,
+            prompt: preset.options.aiPrompt,
+          },
+        });
+        if (error) throw new Error(error.message || "AI enhancement failed");
+        if (data?.error) throw new Error(data.error);
+        enhanced = data.enhancedImage.startsWith("data:")
+          ? data.enhancedImage
+          : `data:image/png;base64,${data.enhancedImage}`;
+      } else {
+        enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
+      }
 
       setImages((prev) =>
         prev.map((img) =>

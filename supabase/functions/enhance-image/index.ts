@@ -82,10 +82,31 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const enhancedImage =
-      data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    console.log("AI response structure:", JSON.stringify(Object.keys(data)));
+    console.log("choices[0].message keys:", JSON.stringify(data.choices?.[0]?.message ? Object.keys(data.choices[0].message) : "no message"));
+
+    // Try multiple known response shapes
+    let enhancedImage =
+      data.choices?.[0]?.message?.images?.[0]?.image_url?.url          // images array
+      ?? data.choices?.[0]?.message?.content?.[0]?.image_url?.url      // content array with image_url
+      ?? null;
+
+    // Also check if content is an array with inline_data (Gemini style)
+    if (!enhancedImage && Array.isArray(data.choices?.[0]?.message?.content)) {
+      for (const part of data.choices[0].message.content) {
+        if (part.type === "image_url" && part.image_url?.url) {
+          enhancedImage = part.image_url.url;
+          break;
+        }
+        if (part.inline_data?.data) {
+          enhancedImage = `data:${part.inline_data.mime_type || "image/png"};base64,${part.inline_data.data}`;
+          break;
+        }
+      }
+    }
 
     if (!enhancedImage) {
+      console.error("Full AI response:", JSON.stringify(data).slice(0, 2000));
       return new Response(
         JSON.stringify({ error: "No enhanced image returned from AI" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

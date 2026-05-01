@@ -7,6 +7,7 @@ import BeforeAfterCard from "@/components/BeforeAfterCard";
 import EnhancePresetTabs from "@/components/EnhancePresetTabs";
 import { enhanceImageCanvas } from "@/lib/enhanceImage";
 import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ImageItem {
   id: string;

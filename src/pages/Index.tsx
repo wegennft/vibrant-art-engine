@@ -208,10 +208,11 @@ const Index = () => {
           selectedPreset={selectedPreset}
           onPresetChange={(id) => {
             setSelectedPreset(id);
-            // Clear enhanced results when switching presets
             setImages((prev) => prev.map((img) => ({ ...img, enhancedSrc: null, error: undefined })));
           }}
           disabled={isEnhancingAll}
+          customPrompt={customAiPrompt}
+          onCustomPromptChange={setCustomAiPrompt}
         />
 
 

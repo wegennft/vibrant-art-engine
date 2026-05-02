@@ -18,9 +18,9 @@ interface ImageItem {
   error?: string;
 }
 
-/** Resize aiSrc to match the dimensions of originalSrc only if needed, preserving transparency */
-const resizeToMatch = (originalSrc: string, aiSrc: string): Promise<string> =>
-  new Promise((resolve) => {
+/** Validate AI output dimensions without resizing, so NFT layers keep their exact canvas */
+const ensureExactDimensions = (originalSrc: string, aiSrc: string): Promise<string> =>
+  new Promise((resolve, reject) => {
     const origImg = new Image();
     origImg.onload = () => {
       const aiImg = new Image();
@@ -31,19 +31,14 @@ const resizeToMatch = (originalSrc: string, aiSrc: string): Promise<string> =>
         const ah = aiImg.naturalHeight;
 
         if (aw === ow && ah === oh) {
-          console.log(`[resizeToMatch] AI output already matches original (${ow}x${oh}), skipping resize`);
+          console.log(`[AI Art] AI output matches original layer canvas (${ow}x${oh}); no resize applied.`);
           resolve(aiSrc);
           return;
         }
 
-        console.warn(`[resizeToMatch] Dimension mismatch — original: ${ow}x${oh}, AI output: ${aw}x${ah}. Resizing to match.`);
-        const canvas = document.createElement("canvas");
-        canvas.width = ow;
-        canvas.height = oh;
-        const ctx = canvas.getContext("2d", { alpha: true })!;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(aiImg, 0, 0, ow, oh);
-        resolve(canvas.toDataURL("image/png"));
+        const message = `AI Art returned ${aw}x${ah}, but this layer must remain exactly ${ow}x${oh}. No resize was applied.`;
+        console.warn(`[AI Art] Dimension mismatch blocked — ${message}`);
+        reject(new Error(message));
       };
       aiImg.src = aiSrc;
     };

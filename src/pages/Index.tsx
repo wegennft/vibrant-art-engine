@@ -18,7 +18,7 @@ interface ImageItem {
   error?: string;
 }
 
-/** Resize aiSrc to match the dimensions of originalSrc */
+/** Resize aiSrc to match the dimensions of originalSrc, preserving transparency */
 const resizeToMatch = (originalSrc: string, aiSrc: string): Promise<string> =>
   new Promise((resolve) => {
     const origImg = new Image();
@@ -28,7 +28,8 @@ const resizeToMatch = (originalSrc: string, aiSrc: string): Promise<string> =>
         const canvas = document.createElement("canvas");
         canvas.width = origImg.naturalWidth;
         canvas.height = origImg.naturalHeight;
-        const ctx = canvas.getContext("2d")!;
+        const ctx = canvas.getContext("2d", { alpha: true })!;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(aiImg, 0, 0, canvas.width, canvas.height);
         resolve(canvas.toDataURL("image/png"));
       };

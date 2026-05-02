@@ -236,19 +236,24 @@ const Index = () => {
 
   const downloadAll = useCallback(async () => {
     const enhanced = images.filter((img) => img.enhancedSrc);
-    for (let i = 0; i < enhanced.length; i++) {
-      const img = enhanced[i];
+    const safe = enhanced.filter((img) => !img.alphaDiff || img.alphaDiff.violatingPixels === 0);
+    const blocked = enhanced.length - safe.length;
+    for (let i = 0; i < safe.length; i++) {
+      const img = safe[i];
       const a = document.createElement("a");
       a.href = img.enhancedSrc!;
       a.download = `enhanced_${img.fileName}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      if (i < enhanced.length - 1) {
+      if (i < safe.length - 1) {
         await new Promise((r) => setTimeout(r, 300));
       }
     }
-    toast.success(`Downloaded ${enhanced.length} images`);
+    if (blocked > 0) {
+      toast.warning(`${blocked} image(s) skipped due to alpha violations`);
+    }
+    toast.success(`Downloaded ${safe.length} images`);
   }, [images]);
 
   const enhancedCount = images.filter((img) => img.enhancedSrc).length;

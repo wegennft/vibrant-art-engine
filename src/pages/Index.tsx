@@ -387,6 +387,14 @@ const Index = () => {
                 isProcessing={img.isProcessing}
                 error={img.error}
                 alphaDiff={img.alphaDiff}
+                onRetry={() => {
+                  setImages((prev) =>
+                    prev.map((i) =>
+                      i.id === img.id ? { ...i, enhancedSrc: null, error: undefined, alphaDiff: undefined } : i
+                    )
+                  );
+                  enhanceImage(img.id);
+                }}
               />
             ))}
           </div>

@@ -138,18 +138,7 @@ const Index = () => {
         let aiResult = await invokeAI(basePrompt);
         let aiDims = await getAIDims(aiResult);
 
-        if (aiDims.w !== origDims.width || aiDims.h !== origDims.height) {
-          console.warn(`[AI retry] Dimension mismatch on first attempt — original: ${origDims.width}x${origDims.height}, got: ${aiDims.w}x${aiDims.h}. Retrying with stricter prompt.`);
-          const strictPrompt = `ABSOLUTE REQUIREMENT: Output MUST be EXACTLY ${origDims.width}x${origDims.height} pixels. Not ${aiDims.w}x${aiDims.h}. Do NOT resize, crop, pad, or change the canvas size in ANY way. The input is ${origDims.width}x${origDims.height} and the output MUST be identical dimensions.\n\n${basePrompt}`;
-          aiResult = await invokeAI(strictPrompt);
-          aiDims = await getAIDims(aiResult);
-
-          if (aiDims.w !== origDims.width || aiDims.h !== origDims.height) {
-            console.warn(`[AI retry] Still mismatched after retry (${aiDims.w}x${aiDims.h}). Blocking result so layer dimensions are not altered.`);
-          }
-        }
-
-        enhanced = await ensureExactDimensions(image!.originalSrc, aiResult);
+        enhanced = await resizeToMatchOriginal(image!.originalSrc, aiResult);
       } else {
         enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
       }

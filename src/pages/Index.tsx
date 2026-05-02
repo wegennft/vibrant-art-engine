@@ -18,7 +18,7 @@ interface ImageItem {
   error?: string;
 }
 
-/** Resize AI output to match original layer dimensions using canvas */
+/** Resize AI output to match original dimensions AND enforce original alpha channel */
 const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<string> =>
   new Promise((resolve, reject) => {
     const origImg = new Image();
@@ -27,22 +27,36 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<stri
       aiImg.onload = () => {
         const ow = origImg.naturalWidth;
         const oh = origImg.naturalHeight;
-        const aw = aiImg.naturalWidth;
-        const ah = aiImg.naturalHeight;
 
-        if (aw === ow && ah === oh) {
-          console.log(`[AI Art] Dimensions match (${ow}x${oh}), no resize needed.`);
-          resolve(aiSrc);
-          return;
-        }
-
-        console.log(`[AI Art] Resizing AI output from ${aw}x${ah} to ${ow}x${oh} to match layer canvas.`);
+        // Draw AI output at original dimensions
         const canvas = document.createElement("canvas");
         canvas.width = ow;
         canvas.height = oh;
         const ctx = canvas.getContext("2d");
         if (!ctx) { reject(new Error("Canvas context failed")); return; }
         ctx.drawImage(aiImg, 0, 0, ow, oh);
+
+        // Get original alpha channel and stamp it onto the AI result
+        const origCanvas = document.createElement("canvas");
+        origCanvas.width = ow;
+        origCanvas.height = oh;
+        const origCtx = origCanvas.getContext("2d");
+        if (!origCtx) { reject(new Error("Canvas context failed")); return; }
+        origCtx.drawImage(origImg, 0, 0);
+        const origData = origCtx.getImageData(0, 0, ow, oh);
+        const aiData = ctx.getImageData(0, 0, ow, oh);
+
+        // Copy alpha from original → AI output (kills any art the AI added in transparent areas)
+        let pixelsCleared = 0;
+        for (let i = 3; i < origData.data.length; i += 4) {
+          if (origData.data[i] === 0 && aiData.data[i] !== 0) {
+            pixelsCleared++;
+          }
+          aiData.data[i] = origData.data[i];
+        }
+        ctx.putImageData(aiData, 0, 0);
+        console.log(`[AI Art] Alpha enforced: ${pixelsCleared} pixels cleared from transparent areas.`);
+
         resolve(canvas.toDataURL("image/png"));
       };
       aiImg.onerror = () => reject(new Error("Failed to load AI image"));

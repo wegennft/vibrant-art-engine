@@ -18,19 +18,31 @@ interface ImageItem {
   error?: string;
 }
 
-/** Resize aiSrc to match the dimensions of originalSrc, preserving transparency */
+/** Resize aiSrc to match the dimensions of originalSrc only if needed, preserving transparency */
 const resizeToMatch = (originalSrc: string, aiSrc: string): Promise<string> =>
   new Promise((resolve) => {
     const origImg = new Image();
     origImg.onload = () => {
       const aiImg = new Image();
       aiImg.onload = () => {
+        const ow = origImg.naturalWidth;
+        const oh = origImg.naturalHeight;
+        const aw = aiImg.naturalWidth;
+        const ah = aiImg.naturalHeight;
+
+        if (aw === ow && ah === oh) {
+          console.log(`[resizeToMatch] AI output already matches original (${ow}x${oh}), skipping resize`);
+          resolve(aiSrc);
+          return;
+        }
+
+        console.warn(`[resizeToMatch] Dimension mismatch — original: ${ow}x${oh}, AI output: ${aw}x${ah}. Resizing to match.`);
         const canvas = document.createElement("canvas");
-        canvas.width = origImg.naturalWidth;
-        canvas.height = origImg.naturalHeight;
+        canvas.width = ow;
+        canvas.height = oh;
         const ctx = canvas.getContext("2d", { alpha: true })!;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(aiImg, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(aiImg, 0, 0, ow, oh);
         resolve(canvas.toDataURL("image/png"));
       };
       aiImg.src = aiSrc;

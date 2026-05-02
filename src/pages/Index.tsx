@@ -58,7 +58,20 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<{ da
         const origData = origCtx.getImageData(0, 0, ow, oh);
         const aiData = ctx.getImageData(0, 0, ow, oh);
 
+        // First pass: count transparent pixels to detect if this is a trait layer or full image
+        const totalPixels = ow * oh;
+        let transparentOriginal = 0;
+        for (let i = 3; i < origData.data.length; i += 4) {
+          if (origData.data[i] < FULLY_OPAQUE_ALPHA) transparentOriginal++;
+        }
+
+        const transparencyRatio = transparentOriginal / totalPixels;
+        const isTraitLayer = transparencyRatio > 0.005; // >0.5% transparent = trait layer
+
+        console.log(`[AI Art] Transparency ratio: ${(transparencyRatio * 100).toFixed(2)}%, isTraitLayer: ${isTraitLayer}`);
+
         const isNearTransparency = (pixelIndex: number) => {
+          if (!isTraitLayer) return false; // Skip edge protection for full images
           const pixel = pixelIndex / 4;
           const x = pixel % ow;
           const y = Math.floor(pixel / ow);
@@ -79,31 +92,24 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<{ da
           return false;
         };
 
-        // Compute alpha diff stats and repair the AI output before export.
-        const totalPixels = ow * oh;
-        let transparentOriginal = 0;
+        // Second pass: repair the AI output
         let pixelsCleared = 0;
         for (let i = 0; i < origData.data.length; i += 4) {
           const originalAlpha = origData.data[i + 3];
           const aiAlpha = aiData.data[i + 3];
 
           if (originalAlpha === TRANSPARENT_ALPHA) {
-            transparentOriginal++;
             if (aiAlpha !== TRANSPARENT_ALPHA) pixelsCleared++;
-
-            // Clear hidden RGB data too.
             aiData.data[i] = 0;
             aiData.data[i + 1] = 0;
             aiData.data[i + 2] = 0;
-          } else if (originalAlpha < FULLY_OPAQUE_ALPHA || isNearTransparency(i)) {
-            // Preserve all semi-transparent pixels and nearby opaque edge pixels.
-            // This prevents AI-generated white/bright halos in fine trait details.
+          } else if (isTraitLayer && (originalAlpha < FULLY_OPAQUE_ALPHA || isNearTransparency(i))) {
+            // Only restore original RGB for trait layers (images with transparency)
             aiData.data[i] = origData.data[i];
             aiData.data[i + 1] = origData.data[i + 1];
             aiData.data[i + 2] = origData.data[i + 2];
           }
-
-          // Exact original mask: every exported pixel keeps the original alpha.
+          // For full images: keep AI RGB as-is, just stamp original alpha
           aiData.data[i + 3] = originalAlpha;
         }
         ctx.putImageData(aiData, 0, 0);

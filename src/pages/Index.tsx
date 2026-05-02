@@ -18,6 +18,25 @@ interface ImageItem {
   error?: string;
 }
 
+/** Resize aiSrc to match the dimensions of originalSrc */
+const resizeToMatch = (originalSrc: string, aiSrc: string): Promise<string> =>
+  new Promise((resolve) => {
+    const origImg = new Image();
+    origImg.onload = () => {
+      const aiImg = new Image();
+      aiImg.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = origImg.naturalWidth;
+        canvas.height = origImg.naturalHeight;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(aiImg, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      aiImg.src = aiSrc;
+    };
+    origImg.src = originalSrc;
+  });
+
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -30,6 +49,9 @@ const Index = () => {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isEnhancingAll, setIsEnhancingAll] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(ENHANCE_PRESETS[0].id);
+  const [customAiPrompt, setCustomAiPrompt] = useState<string>(
+    ENHANCE_PRESETS.find((p) => p.id === "ai-art")?.options.aiPrompt ?? ""
+  );
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
@@ -71,14 +93,16 @@ const Index = () => {
           body: {
             imageBase64: image!.originalSrc,
             fileName: image!.fileName,
-            prompt: preset.options.aiPrompt,
+            prompt: customAiPrompt || preset.options.aiPrompt,
           },
         });
         if (error) throw new Error(error.message || "AI enhancement failed");
         if (data?.error) throw new Error(data.error);
-        enhanced = data.enhancedImage.startsWith("data:")
+        const aiResult = data.enhancedImage.startsWith("data:")
           ? data.enhancedImage
           : `data:image/png;base64,${data.enhancedImage}`;
+        // Force output to match original dimensions
+        enhanced = await resizeToMatch(image!.originalSrc, aiResult);
       } else {
         enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
       }
@@ -205,10 +229,11 @@ const Index = () => {
           selectedPreset={selectedPreset}
           onPresetChange={(id) => {
             setSelectedPreset(id);
-            // Clear enhanced results when switching presets
             setImages((prev) => prev.map((img) => ({ ...img, enhancedSrc: null, error: undefined })));
           }}
           disabled={isEnhancingAll}
+          customPrompt={customAiPrompt}
+          onCustomPromptChange={setCustomAiPrompt}
         />
 
 

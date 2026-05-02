@@ -9,6 +9,13 @@ import { enhanceImageCanvas } from "@/lib/enhanceImage";
 import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
 import { supabase } from "@/integrations/supabase/client";
 
+interface AlphaDiffStats {
+  totalPixels: number;
+  transparentOriginal: number;
+  pixelsCleared: number;
+  violatingPixels: number; // transparent→opaque BEFORE enforcement
+}
+
 interface ImageItem {
   id: string;
   fileName: string;
@@ -16,10 +23,11 @@ interface ImageItem {
   enhancedSrc: string | null;
   isProcessing: boolean;
   error?: string;
+  alphaDiff?: AlphaDiffStats;
 }
 
 /** Resize AI output to match original dimensions AND enforce original alpha channel */
-const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<string> =>
+const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<{ dataUrl: string; alphaDiff: AlphaDiffStats }> =>
   new Promise((resolve, reject) => {
     const origImg = new Image();
     origImg.onload = () => {

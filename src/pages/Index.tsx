@@ -16,6 +16,8 @@ interface AlphaDiffStats {
   violatingPixels: number; // transparent→opaque pixels remaining in final downloadable PNG
 }
 
+const TRANSPARENT_ALPHA = 0;
+
 interface ImageItem {
   id: string;
   fileName: string;
@@ -58,16 +60,33 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<{ da
         const totalPixels = ow * oh;
         let transparentOriginal = 0;
         let pixelsCleared = 0;
-        let violatingPixels = 0;
-        for (let i = 3; i < origData.data.length; i += 4) {
-          if (origData.data[i] === 0) {
+        for (let i = 0; i < origData.data.length; i += 4) {
+          const originalAlpha = origData.data[i + 3];
+          const aiAlpha = aiData.data[i + 3];
+
+          if (originalAlpha === TRANSPARENT_ALPHA) {
             transparentOriginal++;
-            if (aiData.data[i] !== 0) pixelsCleared++;
+            if (aiAlpha !== TRANSPARENT_ALPHA) pixelsCleared++;
+
+            // Clear hidden RGB data too. Some image editors reveal color bleed from
+            // fully-transparent pixels even when alpha is 0.
+            aiData.data[i] = 0;
+            aiData.data[i + 1] = 0;
+            aiData.data[i + 2] = 0;
           }
-          aiData.data[i] = origData.data[i];
-          if (origData.data[i] === 0 && aiData.data[i] !== 0) violatingPixels++;
+
+          // Exact original mask: every exported pixel keeps the original alpha.
+          aiData.data[i + 3] = originalAlpha;
         }
         ctx.putImageData(aiData, 0, 0);
+
+        const repairedData = ctx.getImageData(0, 0, ow, oh);
+        let violatingPixels = 0;
+        for (let i = 3; i < origData.data.length; i += 4) {
+          if (origData.data[i] === TRANSPARENT_ALPHA && repairedData.data[i] !== TRANSPARENT_ALPHA) {
+            violatingPixels++;
+          }
+        }
 
         const alphaDiff: AlphaDiffStats = {
           totalPixels,

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Loader2, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Download, Loader2, RefreshCw, ShieldAlert, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -17,6 +17,7 @@ interface BeforeAfterCardProps {
   isProcessing: boolean;
   error?: string;
   alphaDiff?: AlphaDiffStats;
+  onRetry?: () => void;
 }
 
 const BeforeAfterCard = ({
@@ -26,6 +27,7 @@ const BeforeAfterCard = ({
   isProcessing,
   error,
   alphaDiff,
+  onRetry,
 }: BeforeAfterCardProps) => {
   const [sliderPos, setSliderPos] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
@@ -59,6 +61,19 @@ const BeforeAfterCard = ({
           {fileName}
         </span>
         <div className="flex items-center gap-2 shrink-0">
+          {enhancedSrc && onRetry && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRetry}
+              disabled={isProcessing}
+              className="text-muted-foreground hover:text-foreground"
+              title="Retry enhancement"
+            >
+              <RefreshCw className="w-4 h-4 mr-1" />
+              Retry
+            </Button>
+          )}
           {enhancedSrc && (
             <Button
               variant="ghost"

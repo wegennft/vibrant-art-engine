@@ -354,6 +354,7 @@ const Index = () => {
                 enhancedSrc={img.enhancedSrc}
                 isProcessing={img.isProcessing}
                 error={img.error}
+                alphaDiff={img.alphaDiff}
               />
             ))}
           </div>

@@ -89,12 +89,21 @@ const Index = () => {
       let enhanced: string;
 
       if (preset.options.aiGenerate) {
+        // Get original dimensions to pass to the AI
+        const origDims = await new Promise<{ width: number; height: number }>((res) => {
+          const img = new Image();
+          img.onload = () => res({ width: img.naturalWidth, height: img.naturalHeight });
+          img.src = image!.originalSrc;
+        });
+
         // Route through AI edge function
         const { data, error } = await supabase.functions.invoke('enhance-image', {
           body: {
             imageBase64: image!.originalSrc,
             fileName: image!.fileName,
             prompt: customAiPrompt || preset.options.aiPrompt,
+            width: origDims.width,
+            height: origDims.height,
           },
         });
         if (error) throw new Error(error.message || "AI enhancement failed");

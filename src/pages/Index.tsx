@@ -60,7 +60,6 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<{ da
         const totalPixels = ow * oh;
         let transparentOriginal = 0;
         let pixelsCleared = 0;
-        const SEMI_TRANSPARENT_THRESHOLD = 240; // Protect edge/antialiasing pixels too
         for (let i = 0; i < origData.data.length; i += 4) {
           const originalAlpha = origData.data[i + 3];
           const aiAlpha = aiData.data[i + 3];

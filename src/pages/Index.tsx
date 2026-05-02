@@ -31,7 +31,7 @@ interface ImageItem {
 }
 
 /** Resize AI output to match original dimensions AND enforce original alpha channel */
-const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<{ dataUrl: string; alphaDiff: AlphaDiffStats }> =>
+const resizeToMatchOriginal = (originalSrc: string, aiSrc: string, transparencyThreshold = 0.005): Promise<{ dataUrl: string; alphaDiff: AlphaDiffStats }> =>
   new Promise((resolve, reject) => {
     const origImg = new Image();
     origImg.onload = () => {
@@ -66,7 +66,7 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<{ da
         }
 
         const transparencyRatio = transparentOriginal / totalPixels;
-        const isTraitLayer = transparencyRatio > 0.005; // >0.5% transparent = trait layer
+        const isTraitLayer = transparencyRatio > transparencyThreshold;
 
         console.log(`[AI Art] Transparency ratio: ${(transparencyRatio * 100).toFixed(2)}%, isTraitLayer: ${isTraitLayer}`);
 
@@ -154,6 +154,7 @@ const Index = () => {
   const [customAiPrompt, setCustomAiPrompt] = useState<string>(
     ENHANCE_PRESETS.find((p) => p.id === "ai-art")?.options.aiPrompt ?? ""
   );
+  const [transparencyThreshold, setTransparencyThreshold] = useState(0.5); // percentage
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
@@ -226,7 +227,7 @@ const Index = () => {
         let aiResult = await invokeAI(basePrompt);
         let aiDims = await getAIDims(aiResult);
 
-        const result = await resizeToMatchOriginal(image!.originalSrc, aiResult);
+        const result = await resizeToMatchOriginal(image!.originalSrc, aiResult, transparencyThreshold / 100);
         enhanced = result.dataUrl;
         alphaDiffStats = result.alphaDiff;
       } else {

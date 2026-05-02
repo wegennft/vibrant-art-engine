@@ -54,18 +54,28 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<{ da
         const origData = origCtx.getImageData(0, 0, ow, oh);
         const aiData = ctx.getImageData(0, 0, ow, oh);
 
-        // Copy alpha from original → AI output (kills any art the AI added in transparent areas)
+        // Compute alpha diff stats
+        const totalPixels = ow * oh;
+        let transparentOriginal = 0;
         let pixelsCleared = 0;
         for (let i = 3; i < origData.data.length; i += 4) {
-          if (origData.data[i] === 0 && aiData.data[i] !== 0) {
-            pixelsCleared++;
+          if (origData.data[i] === 0) {
+            transparentOriginal++;
+            if (aiData.data[i] !== 0) pixelsCleared++;
           }
           aiData.data[i] = origData.data[i];
         }
         ctx.putImageData(aiData, 0, 0);
-        console.log(`[AI Art] Alpha enforced: ${pixelsCleared} pixels cleared from transparent areas.`);
 
-        resolve(canvas.toDataURL("image/png"));
+        const alphaDiff: AlphaDiffStats = {
+          totalPixels,
+          transparentOriginal,
+          pixelsCleared,
+          violatingPixels: pixelsCleared,
+        };
+        console.log(`[AI Art] Alpha diff:`, alphaDiff);
+
+        resolve({ dataUrl: canvas.toDataURL("image/png"), alphaDiff });
       };
       aiImg.onerror = () => reject(new Error("Failed to load AI image"));
       aiImg.src = aiSrc;
@@ -160,7 +170,9 @@ const Index = () => {
         let aiResult = await invokeAI(basePrompt);
         let aiDims = await getAIDims(aiResult);
 
-        enhanced = await resizeToMatchOriginal(image!.originalSrc, aiResult);
+        const result = await resizeToMatchOriginal(image!.originalSrc, aiResult);
+        enhanced = result.dataUrl;
+        alphaDiffStats = result.alphaDiff;
       } else {
         enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
       }
@@ -168,7 +180,7 @@ const Index = () => {
       setImages((prev) =>
         prev.map((img) =>
           img.id === imageId
-            ? { ...img, enhancedSrc: enhanced, isProcessing: false }
+            ? { ...img, enhancedSrc: enhanced, isProcessing: false, alphaDiff: alphaDiffStats }
             : img
         )
       );

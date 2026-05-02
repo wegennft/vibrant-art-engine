@@ -74,7 +74,7 @@ const Index = () => {
           body: {
             imageBase64: image!.originalSrc,
             fileName: image!.fileName,
-            prompt: preset.options.aiPrompt,
+            prompt: customAiPrompt || preset.options.aiPrompt,
           },
         });
         if (error) throw new Error(error.message || "AI enhancement failed");

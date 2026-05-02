@@ -6,6 +6,34 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+async function callAIGateway(body: string, apiKey: string, maxRetries = 3): Promise<Response> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const response = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body,
+      }
+    );
+
+    // Retry on transient server errors (502, 503, 504)
+    if ([502, 503, 504].includes(response.status) && attempt < maxRetries - 1) {
+      console.warn(`AI gateway returned ${response.status}, retrying (${attempt + 1}/${maxRetries})...`);
+      await response.text(); // consume body
+      await new Promise((r) => setTimeout(r, 2000 * (attempt + 1))); // backoff
+      continue;
+    }
+
+    return response;
+  }
+  // Should never reach here, but just in case
+  throw new Error("Exhausted retries");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -26,39 +54,31 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3.1-flash-image-preview",
-          messages: [
+    const requestBody = JSON.stringify({
+      model: "google/gemini-3.1-flash-image-preview",
+      messages: [
+        {
+          role: "user",
+          content: [
             {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: (customPrompt
-                    ? `CRITICAL RULES FOR THIS IMAGE — you MUST follow ALL of these:\n1) This is an NFT trait layer PNG with transparent areas. The transparent areas are SACRED — do NOT draw, fill, or place ANYTHING in them. Every pixel that is transparent in the input MUST remain fully transparent (alpha=0) in the output.\n2) ONLY modify the existing artwork — the non-transparent pixels. Do NOT add backgrounds, borders, shadows, extra elements, decorations, or any art outside the original artwork boundaries.\n3) The output MUST be EXACTLY ${width || "the same"}x${height || "the same"} pixels. Do NOT crop, resize, or add padding.\n4) Output as PNG with alpha channel preserved.\n\nNow apply this style/instruction ONLY to the existing artwork (non-transparent pixels): ${customPrompt}`
-                    : `This is a PNG image${width && height ? ` of ${width}x${height} pixels` : ""} with transparent areas (alpha channel). STRICT RULES — violating ANY of these means failure: 1) Output a PNG at EXACTLY ${width || "the same"}x${height || "the same"} pixel dimensions. 2) Transparent pixels MUST stay fully transparent (alpha=0). NO background added. Do NOT draw ANYTHING in the transparent areas. 3) DO NOT CHANGE ANY HUES. Do NOT introduce new colors. Do NOT shift colors (e.g. blue to purple, red to orange, green to teal). The ONLY modification allowed is increasing saturation and brightness of the EXISTING exact colors. Imagine converting each pixel to HSL, keeping H unchanged, and increasing S and L slightly. That is ALL you may do. 4) Do not redraw, reinterpret, or reimagine the artwork. Copy it pixel-perfectly with only saturation/brightness boosted. 5) No cropping, resizing, padding, borders, text, or watermarks. 6) Alpha channel must be identical to input. Do NOT add any art outside the original artwork boundaries. This is for NFT trait layers.`),
-                },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: imageBase64,
-                  },
-                },
-              ],
+              type: "text",
+              text: (customPrompt
+                ? `CRITICAL RULES FOR THIS IMAGE — you MUST follow ALL of these:\n1) This is an NFT trait layer PNG with transparent areas. The transparent areas are SACRED — do NOT draw, fill, or place ANYTHING in them. Every pixel that is transparent in the input MUST remain fully transparent (alpha=0) in the output.\n2) ONLY modify the existing artwork — the non-transparent pixels. Do NOT add backgrounds, borders, shadows, extra elements, decorations, or any art outside the original artwork boundaries.\n3) The output MUST be EXACTLY ${width || "the same"}x${height || "the same"} pixels. Do NOT crop, resize, or add padding.\n4) Output as PNG with alpha channel preserved.\n\nNow apply this style/instruction ONLY to the existing artwork (non-transparent pixels): ${customPrompt}`
+                : `This is a PNG image${width && height ? ` of ${width}x${height} pixels` : ""} with transparent areas (alpha channel). STRICT RULES — violating ANY of these means failure: 1) Output a PNG at EXACTLY ${width || "the same"}x${height || "the same"} pixel dimensions. 2) Transparent pixels MUST stay fully transparent (alpha=0). NO background added. Do NOT draw ANYTHING in the transparent areas. 3) DO NOT CHANGE ANY HUES. Do NOT introduce new colors. Do NOT shift colors (e.g. blue to purple, red to orange, green to teal). The ONLY modification allowed is increasing saturation and brightness of the EXISTING exact colors. Imagine converting each pixel to HSL, keeping H unchanged, and increasing S and L slightly. That is ALL you may do. 4) Do not redraw, reinterpret, or reimagine the artwork. Copy it pixel-perfectly with only saturation/brightness boosted. 5) No cropping, resizing, padding, borders, text, or watermarks. 6) Alpha channel must be identical to input. Do NOT add any art outside the original artwork boundaries. This is for NFT trait layers.`),
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: imageBase64,
+              },
             },
           ],
-          modalities: ["image", "text"],
-        }),
-      }
-    );
+        },
+      ],
+      modalities: ["image", "text"],
+    });
+
+    const response = await callAIGateway(requestBody, LOVABLE_API_KEY);
 
     if (!response.ok) {
       const errText = await response.text();
@@ -78,7 +98,7 @@ serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ error: "Failed to enhance image" }),
+        JSON.stringify({ error: `AI gateway error (${response.status}). Please try again.` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -89,8 +109,8 @@ serve(async (req) => {
 
     // Try multiple known response shapes
     let enhancedImage =
-      data.choices?.[0]?.message?.images?.[0]?.image_url?.url          // images array
-      ?? data.choices?.[0]?.message?.content?.[0]?.image_url?.url      // content array with image_url
+      data.choices?.[0]?.message?.images?.[0]?.image_url?.url
+      ?? data.choices?.[0]?.message?.content?.[0]?.image_url?.url
       ?? null;
 
     // Also check if content is an array with inline_data (Gemini style)
@@ -108,7 +128,6 @@ serve(async (req) => {
     }
 
     if (!enhancedImage) {
-      // AI may have refused or returned text-only — surface the text as the error
       const msg = data.choices?.[0]?.message;
       const textContent = typeof msg?.content === "string"
         ? msg.content

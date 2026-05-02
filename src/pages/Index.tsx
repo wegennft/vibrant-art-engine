@@ -17,6 +17,8 @@ interface AlphaDiffStats {
 }
 
 const TRANSPARENT_ALPHA = 0;
+const FULLY_OPAQUE_ALPHA = 255;
+const EDGE_PROTECTION_RADIUS = 2;
 
 interface ImageItem {
   id: string;
@@ -56,6 +58,27 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<{ da
         const origData = origCtx.getImageData(0, 0, ow, oh);
         const aiData = ctx.getImageData(0, 0, ow, oh);
 
+        const isNearTransparency = (pixelIndex: number) => {
+          const pixel = pixelIndex / 4;
+          const x = pixel % ow;
+          const y = Math.floor(pixel / ow);
+
+          for (let dy = -EDGE_PROTECTION_RADIUS; dy <= EDGE_PROTECTION_RADIUS; dy++) {
+            const ny = y + dy;
+            if (ny < 0 || ny >= oh) continue;
+
+            for (let dx = -EDGE_PROTECTION_RADIUS; dx <= EDGE_PROTECTION_RADIUS; dx++) {
+              const nx = x + dx;
+              if (nx < 0 || nx >= ow) continue;
+
+              const neighborAlpha = origData.data[(ny * ow + nx) * 4 + 3];
+              if (neighborAlpha < FULLY_OPAQUE_ALPHA) return true;
+            }
+          }
+
+          return false;
+        };
+
         // Compute alpha diff stats and repair the AI output before export.
         const totalPixels = ow * oh;
         let transparentOriginal = 0;
@@ -72,9 +95,9 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<{ da
             aiData.data[i] = 0;
             aiData.data[i + 1] = 0;
             aiData.data[i + 2] = 0;
-          } else if (originalAlpha < 255) {
-            // Semi-transparent pixels are antialiasing/edge pixels.
-            // Preserve their original RGB to prevent color bleed at art borders.
+          } else if (originalAlpha < FULLY_OPAQUE_ALPHA || isNearTransparency(i)) {
+            // Preserve all semi-transparent pixels and nearby opaque edge pixels.
+            // This prevents AI-generated white/bright halos in fine trait details.
             aiData.data[i] = origData.data[i];
             aiData.data[i + 1] = origData.data[i + 1];
             aiData.data[i + 2] = origData.data[i + 2];

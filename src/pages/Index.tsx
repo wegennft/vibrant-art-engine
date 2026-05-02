@@ -108,22 +108,45 @@ const Index = () => {
           img.src = image!.originalSrc;
         });
 
-        // Route through AI edge function
-        const { data, error } = await supabase.functions.invoke('enhance-image', {
-          body: {
-            imageBase64: image!.originalSrc,
-            fileName: image!.fileName,
-            prompt: customAiPrompt || preset.options.aiPrompt,
-            width: origDims.width,
-            height: origDims.height,
-          },
-        });
-        if (error) throw new Error(error.message || "AI enhancement failed");
-        if (data?.error) throw new Error(data.error);
-        const aiResult = data.enhancedImage.startsWith("data:")
-          ? data.enhancedImage
-          : `data:image/png;base64,${data.enhancedImage}`;
-        // Force output to match original dimensions
+        const invokeAI = async (prompt: string) => {
+          const { data, error } = await supabase.functions.invoke('enhance-image', {
+            body: {
+              imageBase64: image!.originalSrc,
+              fileName: image!.fileName,
+              prompt,
+              width: origDims.width,
+              height: origDims.height,
+            },
+          });
+          if (error) throw new Error(error.message || "AI enhancement failed");
+          if (data?.error) throw new Error(data.error);
+          return data.enhancedImage.startsWith("data:")
+            ? data.enhancedImage
+            : `data:image/png;base64,${data.enhancedImage}`;
+        };
+
+        const getAIDims = (src: string): Promise<{ w: number; h: number }> =>
+          new Promise((res) => {
+            const i = new Image();
+            i.onload = () => res({ w: i.naturalWidth, h: i.naturalHeight });
+            i.src = src;
+          });
+
+        const basePrompt = customAiPrompt || preset.options.aiPrompt || "";
+        let aiResult = await invokeAI(basePrompt);
+        let aiDims = await getAIDims(aiResult);
+
+        if (aiDims.w !== origDims.width || aiDims.h !== origDims.height) {
+          console.warn(`[AI retry] Dimension mismatch on first attempt — original: ${origDims.width}x${origDims.height}, got: ${aiDims.w}x${aiDims.h}. Retrying with stricter prompt.`);
+          const strictPrompt = `ABSOLUTE REQUIREMENT: Output MUST be EXACTLY ${origDims.width}x${origDims.height} pixels. Not ${aiDims.w}x${aiDims.h}. Do NOT resize, crop, pad, or change the canvas size in ANY way. The input is ${origDims.width}x${origDims.height} and the output MUST be identical dimensions.\n\n${basePrompt}`;
+          aiResult = await invokeAI(strictPrompt);
+          aiDims = await getAIDims(aiResult);
+
+          if (aiDims.w !== origDims.width || aiDims.h !== origDims.height) {
+            console.warn(`[AI retry] Still mismatched after retry (${aiDims.w}x${aiDims.h}). Falling back to client resize.`);
+          }
+        }
+
         enhanced = await resizeToMatch(image!.originalSrc, aiResult);
       } else {
         enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);

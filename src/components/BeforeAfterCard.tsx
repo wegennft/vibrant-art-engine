@@ -1,6 +1,14 @@
 import { useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, ShieldAlert, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+
+interface AlphaDiffStats {
+  totalPixels: number;
+  transparentOriginal: number;
+  pixelsCleared: number;
+  violatingPixels: number;
+}
 
 interface BeforeAfterCardProps {
   fileName: string;
@@ -8,6 +16,7 @@ interface BeforeAfterCardProps {
   enhancedSrc: string | null;
   isProcessing: boolean;
   error?: string;
+  alphaDiff?: AlphaDiffStats;
 }
 
 const BeforeAfterCard = ({
@@ -16,12 +25,19 @@ const BeforeAfterCard = ({
   enhancedSrc,
   isProcessing,
   error,
+  alphaDiff,
 }: BeforeAfterCardProps) => {
   const [sliderPos, setSliderPos] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
 
+  const hasViolation = alphaDiff && alphaDiff.violatingPixels > 0;
+
   const handleDownload = () => {
     if (!enhancedSrc) return;
+    if (hasViolation) {
+      toast.error(`Download blocked: ${alphaDiff!.violatingPixels} transparent pixels became opaque in AI output`);
+      return;
+    }
     const a = document.createElement("a");
     a.href = enhancedSrc;
     a.download = `enhanced_${fileName}`;
@@ -41,18 +57,43 @@ const BeforeAfterCard = ({
         <span className="text-sm font-medium text-foreground truncate">
           {fileName}
         </span>
-        {enhancedSrc && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDownload}
-            className="text-accent hover:text-accent shrink-0"
-          >
-            <Download className="w-4 h-4 mr-1" />
-            Download
-          </Button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {enhancedSrc && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDownload}
+              className={hasViolation ? "text-destructive hover:text-destructive" : "text-accent hover:text-accent"}
+              title={hasViolation ? "Download blocked — alpha violation" : "Download enhanced image"}
+            >
+              <Download className="w-4 h-4 mr-1" />
+              Download
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Alpha diff stats bar */}
+      {alphaDiff && enhancedSrc && (
+        <div className={`px-3 py-2 border-b border-border text-xs flex items-center gap-2 ${hasViolation ? "bg-destructive/10" : "bg-accent/10"}`}>
+          {hasViolation ? (
+            <ShieldAlert className="w-3.5 h-3.5 text-destructive shrink-0" />
+          ) : (
+            <ShieldCheck className="w-3.5 h-3.5 text-accent shrink-0" />
+          )}
+          <span className="text-muted-foreground">
+            {alphaDiff.violatingPixels > 0 ? (
+              <span className="text-destructive font-medium">
+                ⚠ {alphaDiff.violatingPixels.toLocaleString()} transparent→opaque pixels (blocked)
+              </span>
+            ) : (
+              <span className="text-accent">✓ Alpha mask intact</span>
+            )}
+            {" · "}
+            {alphaDiff.transparentOriginal.toLocaleString()} transparent of {alphaDiff.totalPixels.toLocaleString()} total
+          </span>
+        </div>
+      )}
 
       <div
         className="relative select-none cursor-col-resize"
@@ -73,7 +114,6 @@ const BeforeAfterCard = ({
           }}
         />
 
-        {/* Original (full) — contain within the 1:1 frame */}
         <img
           src={originalSrc}
           alt={`Original ${fileName}`}
@@ -81,7 +121,6 @@ const BeforeAfterCard = ({
           draggable={false}
         />
 
-        {/* Enhanced (clipped) — same contain positioning */}
         {enhancedSrc && (
           <div
             className="absolute inset-0 overflow-hidden"
@@ -96,7 +135,6 @@ const BeforeAfterCard = ({
           </div>
         )}
 
-        {/* Slider line */}
         {enhancedSrc && (
           <div
             className="absolute top-0 bottom-0 w-0.5 bg-primary shadow-[0_0_8px_hsl(var(--glow-primary))]"
@@ -108,7 +146,6 @@ const BeforeAfterCard = ({
           </div>
         )}
 
-        {/* Labels */}
         {enhancedSrc && (
           <>
             <span className="absolute top-3 left-3 bg-background/80 text-foreground text-xs px-2 py-1 rounded">
@@ -120,7 +157,6 @@ const BeforeAfterCard = ({
           </>
         )}
 
-        {/* Loading overlay */}
         {isProcessing && (
           <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex flex-col items-center justify-center">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
@@ -128,7 +164,6 @@ const BeforeAfterCard = ({
           </div>
         )}
 
-        {/* Error */}
         {error && (
           <div className="absolute inset-0 bg-destructive/10 flex items-center justify-center">
             <p className="text-sm text-destructive bg-background/80 px-3 py-2 rounded">

@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { imageBase64, fileName, prompt: customPrompt } = await req.json();
+    const { imageBase64, fileName, prompt: customPrompt, width, height } = await req.json();
 
     if (!imageBase64) {
       return new Response(

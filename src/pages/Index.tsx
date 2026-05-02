@@ -79,9 +79,11 @@ const Index = () => {
         });
         if (error) throw new Error(error.message || "AI enhancement failed");
         if (data?.error) throw new Error(data.error);
-        enhanced = data.enhancedImage.startsWith("data:")
+        const aiResult = data.enhancedImage.startsWith("data:")
           ? data.enhancedImage
           : `data:image/png;base64,${data.enhancedImage}`;
+        // Force output to match original dimensions
+        enhanced = await resizeToMatch(image!.originalSrc, aiResult);
       } else {
         enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
       }

@@ -65,7 +65,6 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<stri
     origImg.onerror = () => reject(new Error("Failed to load original image"));
     origImg.src = originalSrc;
   });
-  });
 
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {

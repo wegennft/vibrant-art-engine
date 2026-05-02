@@ -366,6 +366,8 @@ const Index = () => {
           disabled={isEnhancingAll}
           customPrompt={customAiPrompt}
           onCustomPromptChange={setCustomAiPrompt}
+          transparencyThreshold={transparencyThreshold}
+          onTransparencyThresholdChange={setTransparencyThreshold}
         />
 
 

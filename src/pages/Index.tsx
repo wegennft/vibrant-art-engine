@@ -12,8 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 interface AlphaDiffStats {
   totalPixels: number;
   transparentOriginal: number;
-  pixelsCleared: number;
-  violatingPixels: number; // transparent→opaque BEFORE enforcement
+  pixelsCleared: number; // transparent→opaque pixels repaired by the alpha mask
+  violatingPixels: number; // transparent→opaque pixels remaining in final downloadable PNG
 }
 
 interface ImageItem {
@@ -54,16 +54,18 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<{ da
         const origData = origCtx.getImageData(0, 0, ow, oh);
         const aiData = ctx.getImageData(0, 0, ow, oh);
 
-        // Compute alpha diff stats
+        // Compute alpha diff stats and repair the AI output before export.
         const totalPixels = ow * oh;
         let transparentOriginal = 0;
         let pixelsCleared = 0;
+        let violatingPixels = 0;
         for (let i = 3; i < origData.data.length; i += 4) {
           if (origData.data[i] === 0) {
             transparentOriginal++;
             if (aiData.data[i] !== 0) pixelsCleared++;
           }
           aiData.data[i] = origData.data[i];
+          if (origData.data[i] === 0 && aiData.data[i] !== 0) violatingPixels++;
         }
         ctx.putImageData(aiData, 0, 0);
 
@@ -71,7 +73,7 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<{ da
           totalPixels,
           transparentOriginal,
           pixelsCleared,
-          violatingPixels: pixelsCleared,
+          violatingPixels,
         };
         console.log(`[AI Art] Alpha diff:`, alphaDiff);
 

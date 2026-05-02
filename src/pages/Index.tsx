@@ -138,11 +138,11 @@ const Index = () => {
           aiDims = await getAIDims(aiResult);
 
           if (aiDims.w !== origDims.width || aiDims.h !== origDims.height) {
-            console.warn(`[AI retry] Still mismatched after retry (${aiDims.w}x${aiDims.h}). Falling back to client resize.`);
+            console.warn(`[AI retry] Still mismatched after retry (${aiDims.w}x${aiDims.h}). Blocking result so layer dimensions are not altered.`);
           }
         }
 
-        enhanced = await resizeToMatch(image!.originalSrc, aiResult);
+        enhanced = await ensureExactDimensions(image!.originalSrc, aiResult);
       } else {
         enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
       }
@@ -167,7 +167,7 @@ const Index = () => {
       );
       toast.error(message);
     }
-  }, [images, selectedPreset]);
+  }, [images, selectedPreset, customAiPrompt]);
 
   const enhanceAll = useCallback(async () => {
     const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);

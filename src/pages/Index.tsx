@@ -133,6 +133,7 @@ const Index = () => {
     try {
       const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
       let enhanced: string;
+      let alphaDiffStats: AlphaDiffStats | undefined;
 
       if (preset.options.aiGenerate) {
         // Get original dimensions to pass to the AI

@@ -108,10 +108,18 @@ serve(async (req) => {
     }
 
     if (!enhancedImage) {
-      console.error("Full AI response:", JSON.stringify(data).slice(0, 2000));
+      // AI may have refused or returned text-only — surface the text as the error
+      const msg = data.choices?.[0]?.message;
+      const textContent = typeof msg?.content === "string"
+        ? msg.content
+        : Array.isArray(msg?.content)
+          ? msg.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join(" ")
+          : null;
+      const errorMsg = textContent || "No enhanced image returned from AI";
+      console.error("AI returned no image. Text:", errorMsg);
       return new Response(
-        JSON.stringify({ error: "No enhanced image returned from AI" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: errorMsg, fallback: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

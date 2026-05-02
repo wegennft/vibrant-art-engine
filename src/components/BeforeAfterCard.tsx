@@ -31,6 +31,7 @@ const BeforeAfterCard = ({
   const [isDragging, setIsDragging] = useState(false);
 
   const hasViolation = alphaDiff && alphaDiff.violatingPixels > 0;
+  const hasRepairs = alphaDiff && alphaDiff.pixelsCleared > 0;
 
   const handleDownload = () => {
     if (!enhancedSrc) return;
@@ -85,6 +86,10 @@ const BeforeAfterCard = ({
             {alphaDiff.violatingPixels > 0 ? (
               <span className="text-destructive font-medium">
                 ⚠ {alphaDiff.violatingPixels.toLocaleString()} transparent→opaque pixels (blocked)
+              </span>
+            ) : hasRepairs ? (
+              <span className="text-accent">
+                ✓ Alpha mask repaired {alphaDiff.pixelsCleared.toLocaleString()} AI background pixels
               </span>
             ) : (
               <span className="text-accent">✓ Alpha mask intact</span>

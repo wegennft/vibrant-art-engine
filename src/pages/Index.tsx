@@ -18,8 +18,8 @@ interface ImageItem {
   error?: string;
 }
 
-/** Validate AI output dimensions without resizing, so NFT layers keep their exact canvas */
-const ensureExactDimensions = (originalSrc: string, aiSrc: string): Promise<string> =>
+/** Resize AI output to match original layer dimensions using canvas */
+const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<string> =>
   new Promise((resolve, reject) => {
     const origImg = new Image();
     origImg.onload = () => {
@@ -31,17 +31,24 @@ const ensureExactDimensions = (originalSrc: string, aiSrc: string): Promise<stri
         const ah = aiImg.naturalHeight;
 
         if (aw === ow && ah === oh) {
-          console.log(`[AI Art] AI output matches original layer canvas (${ow}x${oh}); no resize applied.`);
+          console.log(`[AI Art] Dimensions match (${ow}x${oh}), no resize needed.`);
           resolve(aiSrc);
           return;
         }
 
-        const message = `AI Art returned ${aw}x${ah}, but this layer must remain exactly ${ow}x${oh}. No resize was applied.`;
-        console.warn(`[AI Art] Dimension mismatch blocked — ${message}`);
-        reject(new Error(message));
+        console.log(`[AI Art] Resizing AI output from ${aw}x${ah} to ${ow}x${oh} to match layer canvas.`);
+        const canvas = document.createElement("canvas");
+        canvas.width = ow;
+        canvas.height = oh;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("Canvas context failed")); return; }
+        ctx.drawImage(aiImg, 0, 0, ow, oh);
+        resolve(canvas.toDataURL("image/png"));
       };
+      aiImg.onerror = () => reject(new Error("Failed to load AI image"));
       aiImg.src = aiSrc;
     };
+    origImg.onerror = () => reject(new Error("Failed to load original image"));
     origImg.src = originalSrc;
   });
 
@@ -131,18 +138,7 @@ const Index = () => {
         let aiResult = await invokeAI(basePrompt);
         let aiDims = await getAIDims(aiResult);
 
-        if (aiDims.w !== origDims.width || aiDims.h !== origDims.height) {
-          console.warn(`[AI retry] Dimension mismatch on first attempt — original: ${origDims.width}x${origDims.height}, got: ${aiDims.w}x${aiDims.h}. Retrying with stricter prompt.`);
-          const strictPrompt = `ABSOLUTE REQUIREMENT: Output MUST be EXACTLY ${origDims.width}x${origDims.height} pixels. Not ${aiDims.w}x${aiDims.h}. Do NOT resize, crop, pad, or change the canvas size in ANY way. The input is ${origDims.width}x${origDims.height} and the output MUST be identical dimensions.\n\n${basePrompt}`;
-          aiResult = await invokeAI(strictPrompt);
-          aiDims = await getAIDims(aiResult);
-
-          if (aiDims.w !== origDims.width || aiDims.h !== origDims.height) {
-            console.warn(`[AI retry] Still mismatched after retry (${aiDims.w}x${aiDims.h}). Blocking result so layer dimensions are not altered.`);
-          }
-        }
-
-        enhanced = await ensureExactDimensions(image!.originalSrc, aiResult);
+        enhanced = await resizeToMatchOriginal(image!.originalSrc, aiResult);
       } else {
         enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
       }

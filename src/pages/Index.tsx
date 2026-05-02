@@ -60,7 +60,6 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<{ da
         const totalPixels = ow * oh;
         let transparentOriginal = 0;
         let pixelsCleared = 0;
-        const SEMI_TRANSPARENT_THRESHOLD = 240; // Protect edge/antialiasing pixels too
         for (let i = 0; i < origData.data.length; i += 4) {
           const originalAlpha = origData.data[i + 3];
           const aiAlpha = aiData.data[i + 3];
@@ -73,7 +72,7 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string): Promise<{ da
             aiData.data[i] = 0;
             aiData.data[i + 1] = 0;
             aiData.data[i + 2] = 0;
-          } else if (originalAlpha < SEMI_TRANSPARENT_THRESHOLD) {
+          } else if (originalAlpha < 255) {
             // Semi-transparent pixels are antialiasing/edge pixels.
             // Preserve their original RGB to prevent color bleed at art borders.
             aiData.data[i] = origData.data[i];

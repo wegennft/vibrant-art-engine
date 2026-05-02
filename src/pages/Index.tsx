@@ -18,6 +18,25 @@ interface ImageItem {
   error?: string;
 }
 
+/** Resize aiSrc to match the dimensions of originalSrc */
+const resizeToMatch = (originalSrc: string, aiSrc: string): Promise<string> =>
+  new Promise((resolve) => {
+    const origImg = new Image();
+    origImg.onload = () => {
+      const aiImg = new Image();
+      aiImg.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = origImg.naturalWidth;
+        canvas.height = origImg.naturalHeight;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(aiImg, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      aiImg.src = aiSrc;
+    };
+    origImg.src = originalSrc;
+  });
+
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();

@@ -271,27 +271,30 @@ const Index = () => {
   const enhancedCount = images.filter((img) => img.enhancedSrc).length;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Header */}
-      <header className="graffiti-border border-b border-border bg-card/50 backdrop-blur-sm">
-        <div className="container max-w-6xl mx-auto py-5 px-4">
+      <header className="graffiti-border border-b border-border carbon-surface backdrop-blur-sm">
+        <div className="container max-w-6xl mx-auto py-4 px-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30">
+            <div
+              className="w-12 h-12 flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, hsl(270 85% 55%), hsl(45 95% 55%))',
+                clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+              }}
+            >
               <Flame className="w-6 h-6 text-accent-foreground" />
             </div>
             <div>
               <h1
-                className="text-3xl tracking-wide"
-                style={{
-                  fontFamily: "'Permanent Marker', cursive",
-                  color: 'hsl(45, 95%, 55%)',
-                  textShadow: '2px 2px 0 hsl(270, 85%, 40%), 0 0 15px hsl(270, 85%, 55%, 0.5)',
-                }}
+                className="text-2xl font-display uppercase tracking-widest text-gold-metallic"
+                style={{ fontFamily: "'Russo One', sans-serif" }}
               >
                 ART UPGRADER
               </h1>
-              <p className="text-sm text-muted-foreground font-hand text-lg">
-                Make your NFT trait art pop 🔥
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground font-heading"
+                style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                NFT Trait Enhancement Engine
               </p>
             </div>
           </div>
@@ -300,34 +303,42 @@ const Index = () => {
 
       <main className="container max-w-6xl mx-auto py-8 px-4 space-y-8">
         {/* Hero Title */}
-        <div className="text-center py-8 relative">
-          {/* Background paint splatter effect */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-            <div className="w-96 h-40 rounded-full bg-primary blur-3xl" />
+        <div className="text-center py-10 relative">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-[500px] h-32 bg-primary/10 blur-[80px]" />
           </div>
           <h2
-            className="text-7xl md:text-9xl tracking-wider animate-[neon-pulse_2s_ease-in-out_infinite] relative"
+            className="text-6xl md:text-8xl lg:text-9xl uppercase tracking-wider relative"
             style={{
-              fontFamily: "'Rubik Spray Paint', 'Permanent Marker', cursive",
-              color: 'hsl(270, 85%, 60%)',
-              WebkitTextStroke: '2px hsl(45, 95%, 55%)',
-              textShadow: '4px 4px 0 hsl(45, 95%, 45%, 0.7), 0 0 30px hsl(270, 85%, 60%, 0.9), 0 0 60px hsl(270, 85%, 55%, 0.7), 0 0 100px hsl(270, 70%, 50%, 0.5), 0 0 150px hsl(270, 85%, 55%, 0.3)',
-              transform: 'rotate(-3deg)',
-              letterSpacing: '0.05em',
+              fontFamily: "'Russo One', sans-serif",
+              color: 'transparent',
+              background: 'linear-gradient(135deg, hsl(270 85% 60%), hsl(45 95% 55%), hsl(270 85% 50%))',
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+              WebkitTextStroke: '1px hsl(45 95% 55% / 0.3)',
+              filter: 'drop-shadow(0 0 20px hsl(270 85% 55% / 0.5)) drop-shadow(0 0 40px hsl(45 95% 55% / 0.2))',
+              letterSpacing: '0.08em',
             }}
           >
             ART UPGRADER
           </h2>
           <p
-            className="mt-4 text-2xl md:text-3xl relative"
+            className="mt-3 text-lg md:text-xl uppercase tracking-[0.4em] relative"
             style={{
-              fontFamily: "'Caveat', cursive",
-              color: 'hsl(45, 95%, 65%)',
-              textShadow: '1px 1px 0 hsl(270, 85%, 30%, 0.5)',
+              fontFamily: "'Orbitron', sans-serif",
+              fontWeight: 700,
+              color: 'hsl(45 95% 65%)',
+              textShadow: '0 0 15px hsl(45 95% 55% / 0.4)',
             }}
           >
-            Level up your NFT game ✨
+            Level Up Your NFT Game
           </p>
+          {/* Decorative angular lines */}
+          <div className="flex justify-center mt-4 gap-1">
+            <div className="w-16 h-[2px] bg-gradient-to-r from-transparent to-primary" />
+            <div className="w-8 h-[2px] bg-accent" />
+            <div className="w-16 h-[2px] bg-gradient-to-l from-transparent to-primary" />
+          </div>
         </div>
 
         {/* Uploader */}
@@ -351,30 +362,45 @@ const Index = () => {
         />
 
         {images.length > 0 && (
-          <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center justify-between flex-wrap gap-3 carbon-surface border border-border rounded-lg p-4">
             <p
-              className="text-base font-hand text-lg"
+              className="text-sm uppercase tracking-widest font-heading"
               style={{
-                fontFamily: "'Caveat', cursive",
-                color: 'hsl(45, 95%, 65%)',
+                fontFamily: "'Orbitron', sans-serif",
+                color: 'hsl(45 95% 65%)',
               }}
             >
               {images.length} image{images.length !== 1 ? "s" : ""} •{" "}
               {enhancedCount} enhanced
             </p>
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setImages([])} className="font-graffiti text-xs uppercase tracking-wider border-primary/30 hover:border-primary hover:shadow-[0_0_15px_hsl(270,85%,55%,0.3)]">
+              <Button
+                variant="outline"
+                onClick={() => setImages([])}
+                className="font-display text-xs uppercase tracking-wider border-primary/30 hover:border-primary hover:shadow-[0_0_15px_hsl(270,85%,55%,0.3)]"
+                style={{ fontFamily: "'Russo One', sans-serif" }}
+              >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Clear All
               </Button>
               {enhancedCount > 0 && (
-                <Button variant="outline" onClick={downloadAll} className="font-graffiti text-xs uppercase tracking-wider border-accent/30 text-accent hover:border-accent hover:shadow-[0_0_15px_hsl(45,95%,55%,0.3)]">
+                <Button
+                  variant="outline"
+                  onClick={downloadAll}
+                  className="font-display text-xs uppercase tracking-wider border-accent/30 text-accent hover:border-accent hover:shadow-[0_0_15px_hsl(45,95%,55%,0.3)]"
+                  style={{ fontFamily: "'Russo One', sans-serif" }}
+                >
                   <Download className="w-4 h-4 mr-2" />
                   Download All
                 </Button>
               )}
               {isEnhancingAll ? (
-                <Button variant="destructive" onClick={stopEnhancing} className="font-graffiti text-xs uppercase tracking-wider">
+                <Button
+                  variant="destructive"
+                  onClick={stopEnhancing}
+                  className="font-display text-xs uppercase tracking-wider"
+                  style={{ fontFamily: "'Russo One', sans-serif" }}
+                >
                   <StopCircle className="w-4 h-4 mr-2" />
                   Stop
                 </Button>
@@ -382,7 +408,11 @@ const Index = () => {
                 <Button
                   onClick={enhanceAll}
                   disabled={images.every((i) => i.enhancedSrc)}
-                  className="font-graffiti text-xs uppercase tracking-wider bg-gradient-to-r from-primary to-accent text-accent-foreground hover:shadow-[0_0_25px_hsl(270,85%,55%,0.5)] transition-shadow"
+                  className="font-display text-xs uppercase tracking-wider text-accent-foreground hover:shadow-[0_0_25px_hsl(270,85%,55%,0.5)] transition-shadow"
+                  style={{
+                    fontFamily: "'Russo One', sans-serif",
+                    background: 'linear-gradient(135deg, hsl(270 85% 55%), hsl(45 95% 50%))',
+                  }}
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
                   Enhance All
@@ -422,29 +452,28 @@ const Index = () => {
         {images.length === 0 && (
           <div className="text-center py-16">
             <p
-              className="text-xl"
+              className="text-base uppercase tracking-[0.3em]"
               style={{
-                fontFamily: "'Caveat', cursive",
-                color: 'hsl(270, 40%, 45%)',
+                fontFamily: "'Orbitron', sans-serif",
+                color: 'hsl(270 30% 40%)',
               }}
             >
-              Drop your NFT trait images to get started 🎨
+              Drop your NFT trait images to get started
             </p>
           </div>
         )}
       </main>
 
-      {/* Footer tag */}
-      <footer className="text-center py-6">
+      {/* Footer */}
+      <footer className="text-center py-6 border-t border-border">
         <p
-          className="text-sm"
+          className="text-xs uppercase tracking-[0.3em]"
           style={{
-            fontFamily: "'Permanent Marker', cursive",
-            color: 'hsl(270, 30%, 30%)',
-            letterSpacing: '0.15em',
+            fontFamily: "'Orbitron', sans-serif",
+            color: 'hsl(270 20% 25%)',
           }}
         >
-          BUILT FOR CREATORS
+          Built for Creators
         </p>
       </footer>
     </div>

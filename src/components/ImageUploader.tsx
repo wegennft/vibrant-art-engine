@@ -39,11 +39,14 @@ const ImageUploader = ({ onImagesSelected, isProcessing }: ImageUploaderProps) =
       }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={handleDrop}
-      className={`relative border-2 border-dashed rounded-xl p-14 text-center transition-all duration-300 cursor-pointer ${
+      className={`relative border-2 border-dashed p-14 text-center transition-all duration-300 cursor-pointer carbon-surface ${
         isDragOver
-          ? "border-accent bg-accent/5 scale-[1.02] shadow-[0_0_30px_hsl(45,95%,55%,0.15)]"
-          : "border-primary/30 hover:border-primary/60 hover:bg-primary/5 hover:shadow-[0_0_20px_hsl(270,85%,55%,0.1)]"
+          ? "border-accent bg-accent/5 scale-[1.01] shadow-[0_0_30px_hsl(45,95%,55%,0.15)]"
+          : "border-primary/30 hover:border-primary/60 hover:shadow-[0_0_20px_hsl(270,85%,55%,0.15)]"
       } ${isProcessing ? "pointer-events-none opacity-50" : ""}`}
+      style={{
+        clipPath: 'polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px))',
+      }}
     >
       <input
         type="file"
@@ -54,28 +57,28 @@ const ImageUploader = ({ onImagesSelected, isProcessing }: ImageUploaderProps) =
         disabled={isProcessing}
       />
       <div className="flex flex-col items-center gap-5">
-        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center border border-primary/20">
-          <Upload className="w-10 h-10 text-accent" />
+        <div
+          className="w-16 h-16 flex items-center justify-center"
+          style={{
+            background: 'linear-gradient(135deg, hsl(270 85% 55% / 0.2), hsl(45 95% 55% / 0.2))',
+            border: '2px solid hsl(270 85% 55% / 0.3)',
+            clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+          }}
+        >
+          <Upload className="w-8 h-8 text-accent" />
         </div>
         <div>
           <p
-            className="text-xl font-bold tracking-wide"
-            style={{
-              fontFamily: "'Permanent Marker', cursive",
-              color: 'hsl(45, 95%, 65%)',
-              textShadow: '1px 1px 0 hsl(270, 85%, 30%, 0.3)',
-            }}
+            className="text-xl uppercase tracking-widest text-gold-metallic"
+            style={{ fontFamily: "'Russo One', sans-serif" }}
           >
-            DROP YOUR TRAITS HERE
+            Drop Your Traits Here
           </p>
           <p
-            className="text-base mt-2"
-            style={{
-              fontFamily: "'Caveat', cursive",
-              color: 'hsl(270, 30%, 50%)',
-            }}
+            className="text-sm mt-2 uppercase tracking-[0.2em] text-muted-foreground"
+            style={{ fontFamily: "'Orbitron', sans-serif", fontSize: '0.7rem' }}
           >
-            or click to browse • PNG, JPG, WEBP supported
+            Or click to browse • PNG, JPG, WEBP
           </p>
         </div>
       </div>

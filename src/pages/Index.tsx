@@ -210,6 +210,7 @@ const Index = () => {
             },
           });
           if (error) throw new Error(error.message || "AI enhancement failed");
+          if (data?.fallback) throw new Error(data.error || "AI could not process this image");
           if (data?.error) throw new Error(data.error);
           return data.enhancedImage.startsWith("data:")
             ? data.enhancedImage

@@ -19,40 +19,6 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
     },
   },
   {
-    id: "bw-film-noir",
-    name: "B&W Film Noir",
-    description: "Cinematic still, moody shadows, low key lighting, grain texture, vignette",
-    options: {
-      saturationBoost: -1,
-      brightnessBoost: -0.08,
-      contrastBoost: 0.70,
-      grain: 0.35,
-      vignette: 0.6,
-    },
-  },
-  {
-    id: "fall-time",
-    name: "Fall Time",
-    description: "Warm sunlight, vibrant fall colors, burnt orange & hunter green tones",
-    options: {
-      saturationBoost: 0.65,
-      brightnessBoost: 0.08,
-      contrastBoost: 0.18,
-      warmShift: 0.35,
-    },
-  },
-  {
-    id: "green-pop",
-    name: "Green Pop",
-    description: "Black & white with only green shades preserved in full color",
-    options: {
-      saturationBoost: 0,
-      brightnessBoost: 0.05,
-      contrastBoost: 0.20,
-      preserveHue: [80, 160],
-    },
-  },
-  {
     id: "ai-art",
     name: "AI Art",
     description: "AI-powered artistic re-imagination — generates a stylized version of each trait while keeping the same dimensions",

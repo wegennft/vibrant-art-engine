@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
-import { Sparkles, Download, Trash2, StopCircle, Flame } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Sparkles, Download, Trash2, StopCircle, Flame, LogIn, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";
@@ -8,6 +9,8 @@ import EnhancePresetTabs from "@/components/EnhancePresetTabs";
 import { enhanceImageCanvas } from "@/lib/enhanceImage";
 import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 interface AlphaDiffStats {
   totalPixels: number;

@@ -369,7 +369,7 @@ const Index = () => {
               letterSpacing: '0.08em',
             }}
           >
-            ART UPGRADER
+            {settings.site_title}
           </h2>
           <p
             className="mt-3 text-lg md:text-xl uppercase tracking-[0.4em] relative"

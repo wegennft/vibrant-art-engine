@@ -124,6 +124,9 @@ const fileToBase64 = (file: File): Promise<string> =>
   });
 
 const Index = () => {
+  const { user, isAdmin, signOut } = useAuth();
+  const { settings } = useSiteSettings();
+  const navigate = useNavigate();
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isEnhancingAll, setIsEnhancingAll] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(ENHANCE_PRESETS[0].id);

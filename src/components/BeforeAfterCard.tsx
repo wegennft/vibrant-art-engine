@@ -57,9 +57,9 @@ const BeforeAfterCard = ({
   };
 
   return (
-    <div className="bg-card rounded-lg border border-border overflow-hidden animate-slide-up">
+    <div className="carbon-surface border border-border overflow-hidden animate-slide-up" style={{ clipPath: 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))' }}>
       <div className="p-3 border-b border-border flex items-center justify-between">
-        <span className="text-sm font-medium text-foreground truncate">
+        <span className="text-xs font-medium text-foreground truncate uppercase tracking-wider" style={{ fontFamily: "'Orbitron', sans-serif" }}>
           {fileName}
         </span>
         <div className="flex items-center gap-2 shrink-0">

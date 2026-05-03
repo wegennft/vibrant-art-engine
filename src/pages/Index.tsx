@@ -418,6 +418,7 @@ const Index = () => {
                 isProcessing={img.isProcessing}
                 error={img.error}
                 alphaDiff={img.alphaDiff}
+                onRemove={() => setImages((prev) => prev.filter((i) => i.id !== img.id))}
                 onRetry={() => {
                   setImages((prev) =>
                     prev.map((i) =>

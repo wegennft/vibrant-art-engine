@@ -96,6 +96,13 @@ serve(async (req) => {
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+      if (response.status === 400) {
+        // Return as fallback so client can gracefully handle (e.g. image too large)
+        return new Response(
+          JSON.stringify({ error: "Image could not be processed (it may be too large). Try a smaller image.", fallback: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
       return new Response(
         JSON.stringify({ error: `AI gateway error (${response.status}). Please try again.` }),

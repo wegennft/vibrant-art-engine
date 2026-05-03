@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Download, Trash2, StopCircle, Flame, LogIn, LogOut, Shield } from "lucide-react";
+import { Sparkles, Download, Trash2, StopCircle, Flame, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";
@@ -322,7 +322,7 @@ const Index = () => {
                   Admin
                 </Button>
               )}
-              {user ? (
+              {user && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -332,17 +332,6 @@ const Index = () => {
                 >
                   <LogOut className="w-4 h-4 mr-1" />
                   Sign Out
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate("/auth")}
-                  className="uppercase tracking-wider text-xs border-primary/30 hover:border-primary"
-                  style={{ fontFamily: "'Russo One', sans-serif" }}
-                >
-                  <LogIn className="w-4 h-4 mr-1" />
-                  Sign In
                 </Button>
               )}
             </div>

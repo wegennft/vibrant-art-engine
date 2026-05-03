@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Loader2, RefreshCw, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Download, Loader2, RefreshCw, ShieldAlert, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -18,6 +18,7 @@ interface BeforeAfterCardProps {
   error?: string;
   alphaDiff?: AlphaDiffStats;
   onRetry?: () => void;
+  onRemove?: () => void;
 }
 
 const BeforeAfterCard = ({
@@ -28,6 +29,7 @@ const BeforeAfterCard = ({
   error,
   alphaDiff,
   onRetry,
+  onRemove,
 }: BeforeAfterCardProps) => {
   const [sliderPos, setSliderPos] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
@@ -61,6 +63,18 @@ const BeforeAfterCard = ({
           {fileName}
         </span>
         <div className="flex items-center gap-2 shrink-0">
+          {onRemove && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRemove}
+              disabled={isProcessing}
+              className="text-muted-foreground hover:text-destructive"
+              title="Remove image"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          )}
           {enhancedSrc && onRetry && (
             <Button
               variant="ghost"

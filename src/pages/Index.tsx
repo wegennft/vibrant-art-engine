@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { Sparkles, Download, Trash2, StopCircle } from "lucide-react";
+import { Sparkles, Download, Trash2, StopCircle, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";
@@ -12,8 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 interface AlphaDiffStats {
   totalPixels: number;
   transparentOriginal: number;
-  pixelsCleared: number; // transparent→opaque pixels repaired by the alpha mask
-  violatingPixels: number; // transparent→opaque pixels remaining in final downloadable PNG
+  pixelsCleared: number;
+  violatingPixels: number;
 }
 
 const TRANSPARENT_ALPHA = 0;
@@ -30,7 +30,6 @@ interface ImageItem {
   alphaDiff?: AlphaDiffStats;
 }
 
-/** Resize AI output to match original dimensions AND enforce original alpha channel */
 const resizeToMatchOriginal = (originalSrc: string, aiSrc: string, transparencyThreshold = 0.005): Promise<{ dataUrl: string; alphaDiff: AlphaDiffStats }> =>
   new Promise((resolve, reject) => {
     const origImg = new Image();
@@ -39,16 +38,12 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string, transparencyT
       aiImg.onload = () => {
         const ow = origImg.naturalWidth;
         const oh = origImg.naturalHeight;
-
-        // Draw AI output at original dimensions
         const canvas = document.createElement("canvas");
         canvas.width = ow;
         canvas.height = oh;
         const ctx = canvas.getContext("2d");
         if (!ctx) { reject(new Error("Canvas context failed")); return; }
         ctx.drawImage(aiImg, 0, 0, ow, oh);
-
-        // Get original alpha channel and stamp it onto the AI result
         const origCanvas = document.createElement("canvas");
         origCanvas.width = ow;
         origCanvas.height = oh;
@@ -57,63 +52,48 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string, transparencyT
         origCtx.drawImage(origImg, 0, 0);
         const origData = origCtx.getImageData(0, 0, ow, oh);
         const aiData = ctx.getImageData(0, 0, ow, oh);
-
-        // First pass: count transparent pixels to detect if this is a trait layer or full image
         const totalPixels = ow * oh;
         let transparentOriginal = 0;
         for (let i = 3; i < origData.data.length; i += 4) {
           if (origData.data[i] < FULLY_OPAQUE_ALPHA) transparentOriginal++;
         }
-
         const transparencyRatio = transparentOriginal / totalPixels;
         const isTraitLayer = transparencyRatio > transparencyThreshold;
-
         console.log(`[AI Art] Transparency ratio: ${(transparencyRatio * 100).toFixed(2)}%, isTraitLayer: ${isTraitLayer}`);
-
         const isNearTransparency = (pixelIndex: number) => {
-          if (!isTraitLayer) return false; // Skip edge protection for full images
+          if (!isTraitLayer) return false;
           const pixel = pixelIndex / 4;
           const x = pixel % ow;
           const y = Math.floor(pixel / ow);
-
           for (let dy = -EDGE_PROTECTION_RADIUS; dy <= EDGE_PROTECTION_RADIUS; dy++) {
             const ny = y + dy;
             if (ny < 0 || ny >= oh) continue;
-
             for (let dx = -EDGE_PROTECTION_RADIUS; dx <= EDGE_PROTECTION_RADIUS; dx++) {
               const nx = x + dx;
               if (nx < 0 || nx >= ow) continue;
-
               const neighborAlpha = origData.data[(ny * ow + nx) * 4 + 3];
               if (neighborAlpha < FULLY_OPAQUE_ALPHA) return true;
             }
           }
-
           return false;
         };
-
-        // Second pass: repair the AI output
         let pixelsCleared = 0;
         for (let i = 0; i < origData.data.length; i += 4) {
           const originalAlpha = origData.data[i + 3];
           const aiAlpha = aiData.data[i + 3];
-
           if (originalAlpha === TRANSPARENT_ALPHA) {
             if (aiAlpha !== TRANSPARENT_ALPHA) pixelsCleared++;
             aiData.data[i] = 0;
             aiData.data[i + 1] = 0;
             aiData.data[i + 2] = 0;
           } else if (isTraitLayer && (originalAlpha < FULLY_OPAQUE_ALPHA || isNearTransparency(i))) {
-            // Only restore original RGB for trait layers (images with transparency)
             aiData.data[i] = origData.data[i];
             aiData.data[i + 1] = origData.data[i + 1];
             aiData.data[i + 2] = origData.data[i + 2];
           }
-          // For full images: keep AI RGB as-is, just stamp original alpha
           aiData.data[i + 3] = originalAlpha;
         }
         ctx.putImageData(aiData, 0, 0);
-
         const repairedData = ctx.getImageData(0, 0, ow, oh);
         let violatingPixels = 0;
         for (let i = 3; i < origData.data.length; i += 4) {
@@ -121,15 +101,8 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string, transparencyT
             violatingPixels++;
           }
         }
-
-        const alphaDiff: AlphaDiffStats = {
-          totalPixels,
-          transparentOriginal,
-          pixelsCleared,
-          violatingPixels,
-        };
+        const alphaDiff: AlphaDiffStats = { totalPixels, transparentOriginal, pixelsCleared, violatingPixels };
         console.log(`[AI Art] Alpha diff:`, alphaDiff);
-
         resolve({ dataUrl: canvas.toDataURL("image/png"), alphaDiff });
       };
       aiImg.onerror = () => reject(new Error("Failed to load AI image"));
@@ -154,7 +127,7 @@ const Index = () => {
   const [customAiPrompt, setCustomAiPrompt] = useState<string>(
     ENHANCE_PRESETS.find((p) => p.id === "ai-art")?.options.aiPrompt ?? ""
   );
-  const [transparencyThreshold, setTransparencyThreshold] = useState(0.5); // percentage
+  const [transparencyThreshold, setTransparencyThreshold] = useState(0.5);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
@@ -176,8 +149,7 @@ const Index = () => {
         img.id === imageId ? { ...img, isProcessing: true, error: undefined } : img
       )
     );
-
-    const image = images.find((img) => img.id === imageId) || 
+    const image = images.find((img) => img.id === imageId) ||
       (await new Promise<ImageItem>((resolve) => {
         setImages((prev) => {
           const found = prev.find((img) => img.id === imageId);
@@ -185,20 +157,16 @@ const Index = () => {
           return prev;
         });
       }));
-
     try {
       const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
       let enhanced: string;
       let alphaDiffStats: AlphaDiffStats | undefined;
-
       if (preset.options.aiGenerate) {
-        // Get original dimensions to pass to the AI
         const origDims = await new Promise<{ width: number; height: number }>((res) => {
           const img = new Image();
           img.onload = () => res({ width: img.naturalWidth, height: img.naturalHeight });
           img.src = image!.originalSrc;
         });
-
         const invokeAI = async (prompt: string) => {
           const { data, error } = await supabase.functions.invoke('enhance-image', {
             body: {
@@ -216,25 +184,14 @@ const Index = () => {
             ? data.enhancedImage
             : `data:image/png;base64,${data.enhancedImage}`;
         };
-
-        const getAIDims = (src: string): Promise<{ w: number; h: number }> =>
-          new Promise((res) => {
-            const i = new Image();
-            i.onload = () => res({ w: i.naturalWidth, h: i.naturalHeight });
-            i.src = src;
-          });
-
         const basePrompt = customAiPrompt || preset.options.aiPrompt || "";
-        let aiResult = await invokeAI(basePrompt);
-        let aiDims = await getAIDims(aiResult);
-
+        const aiResult = await invokeAI(basePrompt);
         const result = await resizeToMatchOriginal(image!.originalSrc, aiResult, transparencyThreshold / 100);
         enhanced = result.dataUrl;
         alphaDiffStats = result.alphaDiff;
       } else {
         enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
       }
-
       setImages((prev) =>
         prev.map((img) =>
           img.id === imageId
@@ -263,7 +220,6 @@ const Index = () => {
       toast.info("All images already enhanced!");
       return;
     }
-
     const controller = new AbortController();
     abortControllerRef.current = controller;
     setIsEnhancingAll(true);
@@ -282,7 +238,6 @@ const Index = () => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
     setIsEnhancingAll(false);
-    // Reset any currently processing images
     setImages((prev) =>
       prev.map((img) =>
         img.isProcessing ? { ...img, isProcessing: false } : img
@@ -318,16 +273,25 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border">
-        <div className="container max-w-6xl mx-auto py-6 px-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-accent" />
+      <header className="graffiti-border border-b border-border bg-card/50 backdrop-blur-sm">
+        <div className="container max-w-6xl mx-auto py-5 px-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30">
+              <Flame className="w-6 h-6 text-accent-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-graffiti text-primary">Art Upgrader</h1>
-              <p className="text-sm text-muted-foreground">
-                Make your NFT trait art brighter & more vibrant
+              <h1
+                className="text-3xl tracking-wide"
+                style={{
+                  fontFamily: "'Permanent Marker', cursive",
+                  color: 'hsl(45, 95%, 55%)',
+                  textShadow: '2px 2px 0 hsl(270, 85%, 40%), 0 0 15px hsl(270, 85%, 55%, 0.5)',
+                }}
+              >
+                ART UPGRADER
+              </h1>
+              <p className="text-sm text-muted-foreground font-hand text-lg">
+                Make your NFT trait art pop 🔥
               </p>
             </div>
           </div>
@@ -336,19 +300,34 @@ const Index = () => {
 
       <main className="container max-w-6xl mx-auto py-8 px-4 space-y-8">
         {/* Hero Title */}
-        <div className="text-center py-6">
+        <div className="text-center py-8 relative">
+          {/* Background paint splatter effect */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+            <div className="w-96 h-40 rounded-full bg-primary blur-3xl" />
+          </div>
           <h2
-            className="text-6xl md:text-8xl tracking-wide animate-[neon-pulse_2s_ease-in-out_infinite]"
+            className="text-7xl md:text-9xl tracking-wider animate-[neon-pulse_2s_ease-in-out_infinite] relative"
             style={{
               fontFamily: "'Rubik Spray Paint', 'Permanent Marker', cursive",
-              color: 'hsl(270, 80%, 60%)',
-              WebkitTextStroke: '1px hsl(45, 90%, 55%)',
-              textShadow: '3px 3px 0 hsl(45, 90%, 45%, 0.6), 0 0 20px hsl(270, 80%, 60%, 0.8), 0 0 40px hsl(270, 80%, 55%, 0.6), 0 0 80px hsl(270, 70%, 50%, 0.4), 0 0 120px hsl(270, 80%, 55%, 0.3)',
-              transform: 'rotate(-2deg)',
+              color: 'hsl(270, 85%, 60%)',
+              WebkitTextStroke: '2px hsl(45, 95%, 55%)',
+              textShadow: '4px 4px 0 hsl(45, 95%, 45%, 0.7), 0 0 30px hsl(270, 85%, 60%, 0.9), 0 0 60px hsl(270, 85%, 55%, 0.7), 0 0 100px hsl(270, 70%, 50%, 0.5), 0 0 150px hsl(270, 85%, 55%, 0.3)',
+              transform: 'rotate(-3deg)',
+              letterSpacing: '0.05em',
             }}
           >
-            Art Upgrader
+            ART UPGRADER
           </h2>
+          <p
+            className="mt-4 text-2xl md:text-3xl relative"
+            style={{
+              fontFamily: "'Caveat', cursive",
+              color: 'hsl(45, 95%, 65%)',
+              textShadow: '1px 1px 0 hsl(270, 85%, 30%, 0.5)',
+            }}
+          >
+            Level up your NFT game ✨
+          </p>
         </div>
 
         {/* Uploader */}
@@ -371,26 +350,31 @@ const Index = () => {
           onTransparencyThresholdChange={setTransparencyThreshold}
         />
 
-
         {images.length > 0 && (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <p
+              className="text-base font-hand text-lg"
+              style={{
+                fontFamily: "'Caveat', cursive",
+                color: 'hsl(45, 95%, 65%)',
+              }}
+            >
               {images.length} image{images.length !== 1 ? "s" : ""} •{" "}
               {enhancedCount} enhanced
             </p>
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setImages([])}>
+              <Button variant="outline" onClick={() => setImages([])} className="font-graffiti text-xs uppercase tracking-wider border-primary/30 hover:border-primary hover:shadow-[0_0_15px_hsl(270,85%,55%,0.3)]">
                 <Trash2 className="w-4 h-4 mr-2" />
                 Clear All
               </Button>
               {enhancedCount > 0 && (
-                <Button variant="outline" onClick={downloadAll}>
+                <Button variant="outline" onClick={downloadAll} className="font-graffiti text-xs uppercase tracking-wider border-accent/30 text-accent hover:border-accent hover:shadow-[0_0_15px_hsl(45,95%,55%,0.3)]">
                   <Download className="w-4 h-4 mr-2" />
                   Download All
                 </Button>
               )}
               {isEnhancingAll ? (
-                <Button variant="destructive" onClick={stopEnhancing}>
+                <Button variant="destructive" onClick={stopEnhancing} className="font-graffiti text-xs uppercase tracking-wider">
                   <StopCircle className="w-4 h-4 mr-2" />
                   Stop
                 </Button>
@@ -398,6 +382,7 @@ const Index = () => {
                 <Button
                   onClick={enhanceAll}
                   disabled={images.every((i) => i.enhancedSrc)}
+                  className="font-graffiti text-xs uppercase tracking-wider bg-gradient-to-r from-primary to-accent text-accent-foreground hover:shadow-[0_0_25px_hsl(270,85%,55%,0.5)] transition-shadow"
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
                   Enhance All
@@ -435,13 +420,33 @@ const Index = () => {
 
         {/* Empty state */}
         {images.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">
-              Upload your NFT trait images to get started
+          <div className="text-center py-16">
+            <p
+              className="text-xl"
+              style={{
+                fontFamily: "'Caveat', cursive",
+                color: 'hsl(270, 40%, 45%)',
+              }}
+            >
+              Drop your NFT trait images to get started 🎨
             </p>
           </div>
         )}
       </main>
+
+      {/* Footer tag */}
+      <footer className="text-center py-6">
+        <p
+          className="text-sm"
+          style={{
+            fontFamily: "'Permanent Marker', cursive",
+            color: 'hsl(270, 30%, 30%)',
+            letterSpacing: '0.15em',
+          }}
+        >
+          BUILT FOR CREATORS
+        </p>
+      </footer>
     </div>
   );
 };

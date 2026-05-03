@@ -39,10 +39,10 @@ const ImageUploader = ({ onImagesSelected, isProcessing }: ImageUploaderProps) =
       }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={handleDrop}
-      className={`relative border-2 border-dashed rounded-lg p-12 text-center transition-all duration-300 cursor-pointer ${
+      className={`relative border-2 border-dashed rounded-xl p-14 text-center transition-all duration-300 cursor-pointer ${
         isDragOver
-          ? "border-primary bg-primary/10 scale-[1.02]"
-          : "border-border hover:border-primary/50 hover:bg-muted/30"
+          ? "border-accent bg-accent/5 scale-[1.02] shadow-[0_0_30px_hsl(45,95%,55%,0.15)]"
+          : "border-primary/30 hover:border-primary/60 hover:bg-primary/5 hover:shadow-[0_0_20px_hsl(270,85%,55%,0.1)]"
       } ${isProcessing ? "pointer-events-none opacity-50" : ""}`}
     >
       <input
@@ -53,15 +53,28 @@ const ImageUploader = ({ onImagesSelected, isProcessing }: ImageUploaderProps) =
         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         disabled={isProcessing}
       />
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-          <Upload className="w-8 h-8 text-primary" />
+      <div className="flex flex-col items-center gap-5">
+        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center border border-primary/20">
+          <Upload className="w-10 h-10 text-accent" />
         </div>
         <div>
-          <p className="text-lg font-semibold text-foreground">
-            Drop your NFT trait images here
+          <p
+            className="text-xl font-bold tracking-wide"
+            style={{
+              fontFamily: "'Permanent Marker', cursive",
+              color: 'hsl(45, 95%, 65%)',
+              textShadow: '1px 1px 0 hsl(270, 85%, 30%, 0.3)',
+            }}
+          >
+            DROP YOUR TRAITS HERE
           </p>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p
+            className="text-base mt-2"
+            style={{
+              fontFamily: "'Caveat', cursive",
+              color: 'hsl(270, 30%, 50%)',
+            }}
+          >
             or click to browse • PNG, JPG, WEBP supported
           </p>
         </div>

@@ -53,18 +53,6 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
     },
   },
   {
-    id: "cyberpunk",
-    name: "Cyberpunk",
-    description: "Neon noir, dystopian aesthetic — vibrant magenta & cyan lighting, glossy metallic textures, holographic glow",
-    options: {
-      saturationBoost: 0.7,
-      brightnessBoost: 0.05,
-      contrastBoost: 0.45,
-      grain: 0.12,
-      cyberpunk: 0.85,
-    },
-  },
-  {
     id: "ai-art",
     name: "AI Art",
     description: "AI-powered artistic re-imagination — generates a stylized version of each trait while keeping the same dimensions",

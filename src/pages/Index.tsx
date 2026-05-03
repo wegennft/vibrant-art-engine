@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
-import { Sparkles, Download, Trash2, StopCircle, Flame } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Sparkles, Download, Trash2, StopCircle, Flame, LogIn, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";
@@ -8,6 +9,8 @@ import EnhancePresetTabs from "@/components/EnhancePresetTabs";
 import { enhanceImageCanvas } from "@/lib/enhanceImage";
 import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 interface AlphaDiffStats {
   totalPixels: number;
@@ -121,6 +124,9 @@ const fileToBase64 = (file: File): Promise<string> =>
   });
 
 const Index = () => {
+  const { user, isAdmin, signOut } = useAuth();
+  const { settings } = useSiteSettings();
+  const navigate = useNavigate();
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isEnhancingAll, setIsEnhancingAll] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(ENHANCE_PRESETS[0].id);
@@ -275,27 +281,70 @@ const Index = () => {
       {/* Header */}
       <header className="graffiti-border border-b border-border carbon-surface backdrop-blur-sm">
         <div className="container max-w-6xl mx-auto py-4 px-4">
-          <div className="flex items-center gap-4">
-            <div
-              className="w-12 h-12 flex items-center justify-center"
-              style={{
-                background: 'linear-gradient(135deg, hsl(270 85% 55%), hsl(45 95% 55%))',
-                clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-              }}
-            >
-              <Flame className="w-6 h-6 text-accent-foreground" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {settings.logo_url ? (
+                <img src={settings.logo_url} alt="Logo" className="w-12 h-12 object-contain" />
+              ) : (
+                <div
+                  className="w-12 h-12 flex items-center justify-center"
+                  style={{
+                    background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
+                    clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+                  }}
+                >
+                  <Flame className="w-6 h-6 text-accent-foreground" />
+                </div>
+              )}
+              <div>
+                <h1
+                  className="text-2xl font-display uppercase tracking-widest text-gold-metallic"
+                  style={{ fontFamily: "'Russo One', sans-serif" }}
+                >
+                  {settings.site_title}
+                </h1>
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground font-heading"
+                  style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                  NFT Trait Enhancement Engine
+                </p>
+              </div>
             </div>
-            <div>
-              <h1
-                className="text-2xl font-display uppercase tracking-widest text-gold-metallic"
-                style={{ fontFamily: "'Russo One', sans-serif" }}
-              >
-                ART UPGRADER
-              </h1>
-              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground font-heading"
-                style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                NFT Trait Enhancement Engine
-              </p>
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("/admin")}
+                  className="uppercase tracking-wider text-xs border-accent/30 text-accent hover:border-accent"
+                  style={{ fontFamily: "'Russo One', sans-serif" }}
+                >
+                  <Shield className="w-4 h-4 mr-1" />
+                  Admin
+                </Button>
+              )}
+              {user ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={signOut}
+                  className="uppercase tracking-wider text-xs text-muted-foreground hover:text-foreground"
+                  style={{ fontFamily: "'Orbitron', sans-serif" }}
+                >
+                  <LogOut className="w-4 h-4 mr-1" />
+                  Sign Out
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("/auth")}
+                  className="uppercase tracking-wider text-xs border-primary/30 hover:border-primary"
+                  style={{ fontFamily: "'Russo One', sans-serif" }}
+                >
+                  <LogIn className="w-4 h-4 mr-1" />
+                  Sign In
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -312,7 +361,7 @@ const Index = () => {
             style={{
               fontFamily: "'Russo One', sans-serif",
               color: 'transparent',
-              background: 'linear-gradient(135deg, hsl(270 85% 60%), hsl(45 95% 55%), hsl(270 85% 50%))',
+              background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)), hsl(var(--primary)))',
               WebkitBackgroundClip: 'text',
               backgroundClip: 'text',
               WebkitTextStroke: '1px hsl(45 95% 55% / 0.3)',
@@ -320,7 +369,7 @@ const Index = () => {
               letterSpacing: '0.08em',
             }}
           >
-            ART UPGRADER
+            {settings.site_title}
           </h2>
           <p
             className="mt-3 text-lg md:text-xl uppercase tracking-[0.4em] relative"

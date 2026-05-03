@@ -361,7 +361,7 @@ const Index = () => {
             style={{
               fontFamily: "'Russo One', sans-serif",
               color: 'transparent',
-              background: `linear-gradient(135deg, hsl(${settings.primary_color.replace(/%/g,'%')}), hsl(${settings.accent_color.replace(/%/g,'%')}), hsl(${settings.primary_color.replace(/%/g,'%')}))`,
+              background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)), hsl(var(--primary)))',
               WebkitBackgroundClip: 'text',
               backgroundClip: 'text',
               WebkitTextStroke: '1px hsl(45 95% 55% / 0.3)',

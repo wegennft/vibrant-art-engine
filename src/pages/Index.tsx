@@ -281,27 +281,70 @@ const Index = () => {
       {/* Header */}
       <header className="graffiti-border border-b border-border carbon-surface backdrop-blur-sm">
         <div className="container max-w-6xl mx-auto py-4 px-4">
-          <div className="flex items-center gap-4">
-            <div
-              className="w-12 h-12 flex items-center justify-center"
-              style={{
-                background: 'linear-gradient(135deg, hsl(270 85% 55%), hsl(45 95% 55%))',
-                clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-              }}
-            >
-              <Flame className="w-6 h-6 text-accent-foreground" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {settings.logo_url ? (
+                <img src={settings.logo_url} alt="Logo" className="w-12 h-12 object-contain" />
+              ) : (
+                <div
+                  className="w-12 h-12 flex items-center justify-center"
+                  style={{
+                    background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
+                    clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+                  }}
+                >
+                  <Flame className="w-6 h-6 text-accent-foreground" />
+                </div>
+              )}
+              <div>
+                <h1
+                  className="text-2xl font-display uppercase tracking-widest text-gold-metallic"
+                  style={{ fontFamily: "'Russo One', sans-serif" }}
+                >
+                  {settings.site_title}
+                </h1>
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground font-heading"
+                  style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                  NFT Trait Enhancement Engine
+                </p>
+              </div>
             </div>
-            <div>
-              <h1
-                className="text-2xl font-display uppercase tracking-widest text-gold-metallic"
-                style={{ fontFamily: "'Russo One', sans-serif" }}
-              >
-                ART UPGRADER
-              </h1>
-              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground font-heading"
-                style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                NFT Trait Enhancement Engine
-              </p>
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("/admin")}
+                  className="uppercase tracking-wider text-xs border-accent/30 text-accent hover:border-accent"
+                  style={{ fontFamily: "'Russo One', sans-serif" }}
+                >
+                  <Shield className="w-4 h-4 mr-1" />
+                  Admin
+                </Button>
+              )}
+              {user ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={signOut}
+                  className="uppercase tracking-wider text-xs text-muted-foreground hover:text-foreground"
+                  style={{ fontFamily: "'Orbitron', sans-serif" }}
+                >
+                  <LogOut className="w-4 h-4 mr-1" />
+                  Sign Out
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("/auth")}
+                  className="uppercase tracking-wider text-xs border-primary/30 hover:border-primary"
+                  style={{ fontFamily: "'Russo One', sans-serif" }}
+                >
+                  <LogIn className="w-4 h-4 mr-1" />
+                  Sign In
+                </Button>
+              )}
             </div>
           </div>
         </div>

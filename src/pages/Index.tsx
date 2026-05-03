@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Download, Trash2, StopCircle, Flame, LogIn, LogOut, Shield } from "lucide-react";
+import { Sparkles, Download, Trash2, StopCircle, Flame, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";

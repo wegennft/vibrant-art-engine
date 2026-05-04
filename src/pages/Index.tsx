@@ -137,16 +137,24 @@ const Index = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
-    const newImages: ImageItem[] = await Promise.all(
-      files.map(async (file) => ({
-        id: crypto.randomUUID(),
-        fileName: file.name,
-        originalSrc: await fileToBase64(file),
-        enhancedSrc: null,
-        isProcessing: false,
-      }))
-    );
-    setImages((prev) => [...prev, ...newImages]);
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < files.length; i += BATCH_SIZE) {
+      const batch = files.slice(i, i + BATCH_SIZE);
+      const newImages: ImageItem[] = await Promise.all(
+        batch.map(async (file) => ({
+          id: crypto.randomUUID(),
+          fileName: file.name,
+          originalSrc: await fileToBase64(file),
+          enhancedSrc: null,
+          isProcessing: false,
+        }))
+      );
+      setImages((prev) => [...prev, ...newImages]);
+      // Yield to the browser between batches to prevent UI freeze
+      if (i + BATCH_SIZE < files.length) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    }
   }, []);
 
   const enhanceImage = useCallback(async (imageId: string) => {

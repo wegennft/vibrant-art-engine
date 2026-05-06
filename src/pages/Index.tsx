@@ -222,14 +222,14 @@ const Index = () => {
               Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
             },
             signal: abortControllerRef.current?.signal,
-            body: {
+            body: JSON.stringify({
               imageBase64: smallBase64,
               fileName: image!.fileName,
               prompt,
               width: origInfo.width,
               height: origInfo.height,
               transparentPercent: origInfo.transparentPercent,
-            },
+            }),
           });
           const data = await response.json().catch(() => null);
           if (!response.ok) throw new Error(data?.error || `AI enhancement failed (${response.status})`);

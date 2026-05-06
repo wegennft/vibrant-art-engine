@@ -8,7 +8,6 @@ import BeforeAfterCard from "@/components/BeforeAfterCard";
 import EnhancePresetTabs from "@/components/EnhancePresetTabs";
 import { enhanceImageCanvas } from "@/lib/enhanceImage";
 import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 
@@ -215,7 +214,14 @@ const Index = () => {
 
         const invokeAI = async (prompt: string) => {
           const smallBase64 = await downscaleForAI(image!.originalSrc);
-          const { data, error } = await supabase.functions.invoke('enhance-image', {
+          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/enhance-image`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            signal: abortControllerRef.current?.signal,
             body: {
               imageBase64: smallBase64,
               fileName: image!.fileName,
@@ -225,7 +231,8 @@ const Index = () => {
               transparentPercent: origInfo.transparentPercent,
             },
           });
-          if (error) throw new Error(error.message || "AI enhancement failed");
+          const data = await response.json().catch(() => null);
+          if (!response.ok) throw new Error(data?.error || `AI enhancement failed (${response.status})`);
           if (data?.fallback) throw new Error(data.error || "AI could not process this image");
           if (data?.error) throw new Error(data.error);
           return data.enhancedImage.startsWith("data:")

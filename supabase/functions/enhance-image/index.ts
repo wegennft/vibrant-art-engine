@@ -40,7 +40,7 @@ serve(async (req) => {
   }
 
   try {
-    const { imageBase64, fileName, prompt: customPrompt, width, height } = await req.json();
+    const { imageBase64, fileName, prompt: customPrompt, width, height, transparentPercent } = await req.json();
 
     if (!imageBase64) {
       return new Response(
@@ -54,6 +54,12 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    // Build context about the trait layer for the AI
+    const isSmallTrait = transparentPercent !== undefined && transparentPercent > 80;
+    const traitContext = isSmallTrait
+      ? `\nIMPORTANT CONTEXT: This image is a SMALL NFT trait layer (like an eye, mouth, accessory, or other facial/body feature). About ${Math.round(transparentPercent)}% of the image is transparent — the actual artwork occupies only a small portion. Focus your attention on the small non-transparent region which contains the artwork. Do NOT be confused by the large transparent area — that is intentional for layer compositing.`
+      : "";
+
     const requestBody = JSON.stringify({
       model: "google/gemini-3.1-flash-image-preview",
       messages: [
@@ -63,8 +69,8 @@ serve(async (req) => {
             {
               type: "text",
               text: (customPrompt
-                ? `CRITICAL RULES FOR THIS IMAGE — you MUST follow ALL of these:\n1) This is an NFT trait layer PNG with transparent areas. The transparent areas are SACRED — do NOT draw, fill, or place ANYTHING in them. Every pixel that is transparent in the input MUST remain fully transparent (alpha=0) in the output.\n2) ONLY modify the existing artwork — the non-transparent pixels. Do NOT add backgrounds, borders, shadows, extra elements, decorations, or any art outside the original artwork boundaries.\n3) The output MUST be EXACTLY ${width || "the same"}x${height || "the same"} pixels. Do NOT crop, resize, or add padding.\n4) Output as PNG with alpha channel preserved.\n\nNow apply this style/instruction ONLY to the existing artwork (non-transparent pixels): ${customPrompt}`
-                : `This is a PNG image${width && height ? ` of ${width}x${height} pixels` : ""} with transparent areas (alpha channel). STRICT RULES — violating ANY of these means failure: 1) Output a PNG at EXACTLY ${width || "the same"}x${height || "the same"} pixel dimensions. 2) Transparent pixels MUST stay fully transparent (alpha=0). NO background added. Do NOT draw ANYTHING in the transparent areas. 3) DO NOT CHANGE ANY HUES. Do NOT introduce new colors. Do NOT shift colors (e.g. blue to purple, red to orange, green to teal). The ONLY modification allowed is increasing saturation and brightness of the EXISTING exact colors. Imagine converting each pixel to HSL, keeping H unchanged, and increasing S and L slightly. That is ALL you may do. 4) Do not redraw, reinterpret, or reimagine the artwork. Copy it pixel-perfectly with only saturation/brightness boosted. 5) No cropping, resizing, padding, borders, text, or watermarks. 6) Alpha channel must be identical to input. Do NOT add any art outside the original artwork boundaries. This is for NFT trait layers.`),
+                ? `CRITICAL RULES FOR THIS IMAGE — you MUST follow ALL of these:\n1) This is an NFT trait layer PNG with transparent areas. The transparent areas are SACRED — do NOT draw, fill, or place ANYTHING in them. Every pixel that is transparent in the input MUST remain fully transparent (alpha=0) in the output.\n2) ONLY modify the existing artwork — the non-transparent pixels. Do NOT add backgrounds, borders, shadows, extra elements, decorations, or any art outside the original artwork boundaries.\n3) The output MUST be EXACTLY ${width || "the same"}x${height || "the same"} pixels. Do NOT crop, resize, or add padding.\n4) Output as PNG with alpha channel preserved.${traitContext}\n\nNow apply this style/instruction ONLY to the existing artwork (non-transparent pixels): ${customPrompt}`
+                : `This is a PNG image${width && height ? ` of ${width}x${height} pixels` : ""} with transparent areas (alpha channel).${traitContext} STRICT RULES — violating ANY of these means failure: 1) Output a PNG at EXACTLY ${width || "the same"}x${height || "the same"} pixel dimensions. 2) Transparent pixels MUST stay fully transparent (alpha=0). NO background added. Do NOT draw ANYTHING in the transparent areas. 3) DO NOT CHANGE ANY HUES. Do NOT introduce new colors. Do NOT shift colors (e.g. blue to purple, red to orange, green to teal). The ONLY modification allowed is increasing saturation and brightness of the EXISTING exact colors. Imagine converting each pixel to HSL, keeping H unchanged, and increasing S and L slightly. That is ALL you may do. 4) Do not redraw, reinterpret, or reimagine the artwork. Copy it pixel-perfectly with only saturation/brightness boosted. 5) No cropping, resizing, padding, borders, text, or watermarks. 6) Alpha channel must be identical to input. Do NOT add any art outside the original artwork boundaries. This is for NFT trait layers.`),
             },
             {
               type: "image_url",

@@ -193,10 +193,31 @@ const Index = () => {
           };
           img.src = image!.originalSrc;
         });
+        // Downscale large images before sending to AI to avoid payload limits
+        const downscaleForAI = (src: string, maxDim = 1024): Promise<string> => {
+          return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+              const { naturalWidth: w, naturalHeight: h } = img;
+              if (w <= maxDim && h <= maxDim) { resolve(src); return; }
+              const scale = maxDim / Math.max(w, h);
+              const nw = Math.round(w * scale);
+              const nh = Math.round(h * scale);
+              const c = document.createElement("canvas");
+              c.width = nw; c.height = nh;
+              const cx = c.getContext("2d")!;
+              cx.drawImage(img, 0, 0, nw, nh);
+              resolve(c.toDataURL("image/png"));
+            };
+            img.src = src;
+          });
+        };
+
         const invokeAI = async (prompt: string) => {
+          const smallBase64 = await downscaleForAI(image!.originalSrc);
           const { data, error } = await supabase.functions.invoke('enhance-image', {
             body: {
-              imageBase64: image!.originalSrc,
+              imageBase64: smallBase64,
               fileName: image!.fileName,
               prompt,
               width: origInfo.width,

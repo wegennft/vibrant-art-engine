@@ -176,9 +176,21 @@ const Index = () => {
       let enhanced: string;
       let alphaDiffStats: AlphaDiffStats | undefined;
       if (preset.options.aiGenerate) {
-        const origDims = await new Promise<{ width: number; height: number }>((res) => {
+        // Calculate original dimensions and transparency percentage
+        const origInfo = await new Promise<{ width: number; height: number; transparentPercent: number }>((res) => {
           const img = new Image();
-          img.onload = () => res({ width: img.naturalWidth, height: img.naturalHeight });
+          img.onload = () => {
+            const c = document.createElement("canvas");
+            c.width = img.naturalWidth;
+            c.height = img.naturalHeight;
+            const cx = c.getContext("2d");
+            if (!cx) { res({ width: img.naturalWidth, height: img.naturalHeight, transparentPercent: 0 }); return; }
+            cx.drawImage(img, 0, 0);
+            const d = cx.getImageData(0, 0, c.width, c.height).data;
+            let transparent = 0;
+            for (let i = 3; i < d.length; i += 4) { if (d[i] === 0) transparent++; }
+            res({ width: img.naturalWidth, height: img.naturalHeight, transparentPercent: (transparent / (c.width * c.height)) * 100 });
+          };
           img.src = image!.originalSrc;
         });
         const invokeAI = async (prompt: string) => {
@@ -187,8 +199,9 @@ const Index = () => {
               imageBase64: image!.originalSrc,
               fileName: image!.fileName,
               prompt,
-              width: origDims.width,
-              height: origDims.height,
+              width: origInfo.width,
+              height: origInfo.height,
+              transparentPercent: origInfo.transparentPercent,
             },
           });
           if (error) throw new Error(error.message || "AI enhancement failed");

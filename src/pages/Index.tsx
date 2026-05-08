@@ -318,9 +318,9 @@ const Index = () => {
         )
       );
       toast.success(`Enhanced ${image?.fileName}`);
-    } catch (err: any) {
-      if (err?.name === "AbortError") return;
-      const message = err?.message || "Failed to enhance image";
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      const message = err instanceof Error ? err.message : "Failed to enhance image";
       setImages((prev) =>
         prev.map((img) =>
           img.id === imageId
@@ -330,7 +330,7 @@ const Index = () => {
       );
       toast.error(message);
     }
-  }, [images, selectedPreset, customAiPrompt, transparencyThreshold, user, isAdmin]);
+  }, [images, selectedPreset, customAiPrompt, transparencyThreshold, user]);
 
   const enhanceAll = useCallback(async () => {
     const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);

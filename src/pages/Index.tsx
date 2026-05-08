@@ -299,7 +299,7 @@ const Index = () => {
       );
       toast.error(message);
     }
-  }, [images, selectedPreset, customAiPrompt, transparencyThreshold, creditsExhausted, markExhausted]);
+  }, [images, selectedPreset, customAiPrompt, transparencyThreshold, user, isAdmin, credits, refetchCredits]);
 
   const enhanceAll = useCallback(async () => {
     const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);
@@ -481,10 +481,14 @@ const Index = () => {
         />
 
         <CreditStatusPanel
-          exhausted={creditsExhausted}
+          isAdmin={isAdmin}
+          balance={credits?.balance ?? null}
+          loading={creditsLoading}
           isAiPreset={isAiPreset}
-          onReset={resetExhausted}
+          costPerEnhance={CREDIT_COST_PER_ENHANCE}
+          onBuyClick={() => setBuyOpen(true)}
         />
+        <BuyCreditsDialog open={buyOpen} onOpenChange={setBuyOpen} />
 
         {images.length > 0 && (
           <div className="flex items-center justify-between flex-wrap gap-3 carbon-surface border border-border rounded-lg p-4">
@@ -532,7 +536,7 @@ const Index = () => {
               ) : (
                 <Button
                   onClick={enhanceAll}
-                  disabled={images.every((i) => i.enhancedSrc) || (isAiPreset && creditsExhausted)}
+                  disabled={images.every((i) => i.enhancedSrc) || insufficientCredits}
                   className="font-display text-xs uppercase tracking-wider text-accent-foreground hover:shadow-[0_0_25px_hsl(270,85%,55%,0.5)] transition-shadow"
                   style={{
                     fontFamily: "'Russo One', sans-serif",

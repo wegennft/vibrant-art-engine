@@ -202,11 +202,11 @@ const Index = () => {
     }
   }, []);
 
-  const enhanceImage = useCallback(async (imageId: string) => {
+  const enhanceImage = useCallback(async (imageId: string): Promise<boolean> => {
     const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
     if (preset.options.aiGenerate && !user) {
       toast.error("Sign in to use AI enhancement");
-      return;
+      return false;
     }
     setImages((prev) =>
       prev.map((img) =>
@@ -298,6 +298,7 @@ const Index = () => {
           if (!response.ok) throw new Error(data?.error || `AI enhancement failed (${response.status})`);
           if (data?.fallback) throw new Error(data.error || "AI could not process this image");
           if (data?.error) throw new Error(data.error);
+          if (!data?.enhancedImage) throw new Error("AI did not return an enhanced image");
           return data.enhancedImage.startsWith("data:")
             ? data.enhancedImage
             : `data:image/png;base64,${data.enhancedImage}`;
@@ -318,8 +319,9 @@ const Index = () => {
         )
       );
       toast.success(`Enhanced ${image?.fileName}`);
+      return true;
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") return;
+      if (err instanceof Error && err.name === "AbortError") return false;
       const message = err instanceof Error ? err.message : "Failed to enhance image";
       setImages((prev) =>
         prev.map((img) =>
@@ -329,6 +331,7 @@ const Index = () => {
         )
       );
       toast.error(message);
+      return false;
     }
   }, [images, selectedPreset, customAiPrompt, transparencyThreshold, user]);
 
@@ -341,14 +344,24 @@ const Index = () => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
     setIsEnhancingAll(true);
+    let successCount = 0;
+    let failureCount = 0;
     for (const img of unenhanced) {
       if (controller.signal.aborted) break;
-      await enhanceImage(img.id);
+      const enhanced = await enhanceImage(img.id);
+      if (enhanced) successCount += 1;
+      else failureCount += 1;
     }
     setIsEnhancingAll(false);
     abortControllerRef.current = null;
     if (!controller.signal.aborted) {
-      toast.success("All images enhanced!");
+      if (successCount > 0 && failureCount === 0) {
+        toast.success("All images enhanced!");
+      } else if (successCount > 0) {
+        toast.warning(`${successCount} enhanced, ${failureCount} failed`);
+      } else {
+        toast.error("No images were enhanced");
+      }
     }
   }, [images, enhanceImage]);
 

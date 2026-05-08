@@ -253,6 +253,10 @@ const Index = () => {
             }),
           });
           const data = await response.json().catch(() => null);
+          if (response.status === 401 || data?.code === "AUTH_EXPIRED") {
+            await supabase.auth.signOut();
+            throw new Error("Your session expired. Please sign in again.");
+          }
           if (response.status === 402 || data?.code === "INSUFFICIENT_CREDITS") {
             throw new Error(data?.error || "Service unavailable. Please try again.");
           }

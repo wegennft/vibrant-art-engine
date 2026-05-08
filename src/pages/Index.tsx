@@ -96,7 +96,7 @@ const Index = () => {
           body: {
             imageBase64: image!.originalSrc,
             fileName: image!.fileName,
-            prompt: preset.options.aiPrompt,
+            prompt: aiPrompt.trim() || preset.options.aiPrompt,
             width: img.naturalWidth,
             height: img.naturalHeight,
           },

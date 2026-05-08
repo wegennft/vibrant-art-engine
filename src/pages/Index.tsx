@@ -137,7 +137,31 @@ const Index = () => {
     ENHANCE_PRESETS.find((p) => p.id === "ai-art")?.options.aiPrompt ?? ""
   );
   const [transparencyThreshold, setTransparencyThreshold] = useState(0.5);
+  const [creditsExhausted, setCreditsExhausted] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const currentPreset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
+  const isAiPreset = !!currentPreset.options.aiGenerate;
+
+  useEffect(() => {
+    const ts = localStorage.getItem(CREDITS_EXHAUSTED_KEY);
+    if (ts && Date.now() - Number(ts) < EXHAUSTED_TTL_MS) {
+      setCreditsExhausted(true);
+    } else if (ts) {
+      localStorage.removeItem(CREDITS_EXHAUSTED_KEY);
+    }
+  }, []);
+
+  const markExhausted = useCallback(() => {
+    localStorage.setItem(CREDITS_EXHAUSTED_KEY, String(Date.now()));
+    setCreditsExhausted(true);
+  }, []);
+
+  const resetExhausted = useCallback(() => {
+    localStorage.removeItem(CREDITS_EXHAUSTED_KEY);
+    setCreditsExhausted(false);
+    toast.info("Credit status reset — try enhancing again");
+  }, []);
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
     const BATCH_SIZE = 5;

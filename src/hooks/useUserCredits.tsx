@@ -14,7 +14,7 @@ export const useUserCredits = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchCredits = useCallback(async () => {
-    if (!user) {
+    if (!user || isAdmin) {
       setCredits(null);
       setLoading(false);
       return;
@@ -26,7 +26,7 @@ export const useUserCredits = () => {
       .maybeSingle();
     if (!error && data) setCredits(data);
     setLoading(false);
-  }, [user]);
+  }, [user, isAdmin]);
 
   useEffect(() => {
     fetchCredits();

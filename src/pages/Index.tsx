@@ -359,6 +359,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen">
+      <PaymentTestModeBanner />
       {/* Header */}
       <header className="graffiti-border border-b border-border carbon-surface backdrop-blur-sm">
         <div className="container max-w-6xl mx-auto py-4 px-4">

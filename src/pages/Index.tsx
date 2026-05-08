@@ -185,6 +185,11 @@ const Index = () => {
   }, []);
 
   const enhanceImage = useCallback(async (imageId: string) => {
+    const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
+    if (preset.options.aiGenerate && creditsExhausted) {
+      toast.error("AI credits exhausted. Add funds in Workspace settings.");
+      return;
+    }
     setImages((prev) =>
       prev.map((img) =>
         img.id === imageId ? { ...img, isProcessing: true, error: undefined } : img

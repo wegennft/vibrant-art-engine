@@ -169,11 +169,6 @@ const Index = () => {
       toast.error("Sign in to use AI enhancement");
       return;
     }
-    if (preset.options.aiGenerate && !isAdmin && (credits?.balance ?? 0) < CREDIT_COST_PER_ENHANCE) {
-      toast.error("Insufficient credits. Click Buy Credits to top up.");
-      setBuyOpen(true);
-      return;
-    }
     setImages((prev) =>
       prev.map((img) =>
         img.id === imageId ? { ...img, isProcessing: true, error: undefined } : img

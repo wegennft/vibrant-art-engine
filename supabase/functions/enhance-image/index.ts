@@ -42,10 +42,80 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Auth check
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return new Response(
+      JSON.stringify({ error: "Sign in to use AI enhancement" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const userClient = createClient(supabaseUrl, anonKey);
+  const token = authHeader.replace("Bearer ", "");
+  const { data: userData, error: userErr } = await userClient.auth.getUser(token);
+  if (userErr || !userData.user) {
+    return new Response(
+      JSON.stringify({ error: "Invalid auth token" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+  const userId = userData.user.id;
+  const adminClient = createClient(supabaseUrl, serviceKey);
+
+  // Check admin role — admins bypass credits
+  const { data: adminCheck } = await adminClient.rpc("has_role", {
+    _user_id: userId,
+    _role: "admin",
+  });
+  const isAdmin = !!adminCheck;
+
+  let creditsDeducted = false;
+  if (!isAdmin) {
+    const { data: newBalance, error: deductErr } = await adminClient.rpc("deduct_credits", {
+      _user_id: userId,
+      _amount: CREDIT_COST,
+      _description: "AI image enhancement",
+    });
+    if (deductErr) {
+      console.error("deduct_credits error:", deductErr);
+      return new Response(
+        JSON.stringify({ error: "Failed to check credits. Please try again." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (newBalance === null) {
+      return new Response(
+        JSON.stringify({ error: "Insufficient credits. Please top up to continue.", code: "INSUFFICIENT_CREDITS" }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    creditsDeducted = true;
+    console.log(`Deducted ${CREDIT_COST} credits from ${userId}. New balance: ${newBalance}`);
+  } else {
+    console.log(`Admin ${userId} — bypassing credit deduction`);
+  }
+
+  const refundIfNeeded = async () => {
+    if (!creditsDeducted) return;
+    await adminClient.rpc("add_credits", {
+      _user_id: userId,
+      _amount: CREDIT_COST,
+      _kind: "refund",
+      _description: "AI enhancement failed — refund",
+    });
+    creditsDeducted = false;
+  };
+
   try {
     const { imageBase64, fileName, prompt: customPrompt, width, height, transparentPercent } = await req.json();
 
     if (!imageBase64) {
+      await refundIfNeeded();
       return new Response(
         JSON.stringify({ error: "No image data provided" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

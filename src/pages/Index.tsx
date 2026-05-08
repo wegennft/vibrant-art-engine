@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, Download, Trash2, StopCircle, Flame, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,10 +6,14 @@ import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";
 import BeforeAfterCard from "@/components/BeforeAfterCard";
 import EnhancePresetTabs from "@/components/EnhancePresetTabs";
+import CreditStatusPanel from "@/components/CreditStatusPanel";
 import { enhanceImageCanvas } from "@/lib/enhanceImage";
 import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
 import { useAuth } from "@/hooks/useAuth";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+
+const CREDITS_EXHAUSTED_KEY = "ai_credits_exhausted_at";
+const EXHAUSTED_TTL_MS = 60 * 60 * 1000; // auto-recheck after 1h
 
 interface AlphaDiffStats {
   totalPixels: number;
@@ -133,7 +137,31 @@ const Index = () => {
     ENHANCE_PRESETS.find((p) => p.id === "ai-art")?.options.aiPrompt ?? ""
   );
   const [transparencyThreshold, setTransparencyThreshold] = useState(0.5);
+  const [creditsExhausted, setCreditsExhausted] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const currentPreset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
+  const isAiPreset = !!currentPreset.options.aiGenerate;
+
+  useEffect(() => {
+    const ts = localStorage.getItem(CREDITS_EXHAUSTED_KEY);
+    if (ts && Date.now() - Number(ts) < EXHAUSTED_TTL_MS) {
+      setCreditsExhausted(true);
+    } else if (ts) {
+      localStorage.removeItem(CREDITS_EXHAUSTED_KEY);
+    }
+  }, []);
+
+  const markExhausted = useCallback(() => {
+    localStorage.setItem(CREDITS_EXHAUSTED_KEY, String(Date.now()));
+    setCreditsExhausted(true);
+  }, []);
+
+  const resetExhausted = useCallback(() => {
+    localStorage.removeItem(CREDITS_EXHAUSTED_KEY);
+    setCreditsExhausted(false);
+    toast.info("Credit status reset — try enhancing again");
+  }, []);
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
     const BATCH_SIZE = 5;
@@ -157,6 +185,11 @@ const Index = () => {
   }, []);
 
   const enhanceImage = useCallback(async (imageId: string) => {
+    const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
+    if (preset.options.aiGenerate && creditsExhausted) {
+      toast.error("AI credits exhausted. Add funds in Workspace settings.");
+      return;
+    }
     setImages((prev) =>
       prev.map((img) =>
         img.id === imageId ? { ...img, isProcessing: true, error: undefined } : img
@@ -232,6 +265,10 @@ const Index = () => {
             }),
           });
           const data = await response.json().catch(() => null);
+          if (response.status === 402 || /credits? exhausted|payment_required|not enough credits/i.test(data?.error || "")) {
+            markExhausted();
+            throw new Error("AI credits exhausted. Add funds in Workspace settings.");
+          }
           if (!response.ok) throw new Error(data?.error || `AI enhancement failed (${response.status})`);
           if (data?.fallback) throw new Error(data.error || "AI could not process this image");
           if (data?.error) throw new Error(data.error);
@@ -267,7 +304,7 @@ const Index = () => {
       );
       toast.error(message);
     }
-  }, [images, selectedPreset, customAiPrompt, transparencyThreshold]);
+  }, [images, selectedPreset, customAiPrompt, transparencyThreshold, creditsExhausted, markExhausted]);
 
   const enhanceAll = useCallback(async () => {
     const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);
@@ -448,6 +485,12 @@ const Index = () => {
           onTransparencyThresholdChange={setTransparencyThreshold}
         />
 
+        <CreditStatusPanel
+          exhausted={creditsExhausted}
+          isAiPreset={isAiPreset}
+          onReset={resetExhausted}
+        />
+
         {images.length > 0 && (
           <div className="flex items-center justify-between flex-wrap gap-3 carbon-surface border border-border rounded-lg p-4">
             <p
@@ -494,7 +537,7 @@ const Index = () => {
               ) : (
                 <Button
                   onClick={enhanceAll}
-                  disabled={images.every((i) => i.enhancedSrc)}
+                  disabled={images.every((i) => i.enhancedSrc) || (isAiPreset && creditsExhausted)}
                   className="font-display text-xs uppercase tracking-wider text-accent-foreground hover:shadow-[0_0_25px_hsl(270,85%,55%,0.5)] transition-shadow"
                   style={{
                     fontFamily: "'Russo One', sans-serif",

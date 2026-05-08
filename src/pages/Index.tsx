@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";
 import BeforeAfterCard from "@/components/BeforeAfterCard";
 import EnhancePresetTabs from "@/components/EnhancePresetTabs";
-import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { enhanceImageCanvas } from "@/lib/enhanceImage";
 import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
 import { useAuth } from "@/hooks/useAuth";
@@ -46,14 +45,7 @@ const Index = () => {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isEnhancingAll, setIsEnhancingAll] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(ENHANCE_PRESETS[0].id);
-  const [customAiPrompt, setCustomAiPrompt] = useState<string>(
-    ENHANCE_PRESETS.find((p) => p.id === "ai-art")?.options.aiPrompt ?? ""
-  );
-  const [transparencyThreshold, setTransparencyThreshold] = useState(0.5);
   const abortControllerRef = useRef<AbortController | null>(null);
-
-  const currentPreset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
-  const isAiPreset = !!currentPreset.options.aiGenerate;
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
     const BATCH_SIZE = 5;
@@ -301,10 +293,6 @@ const Index = () => {
             setImages((prev) => prev.map((img) => ({ ...img, enhancedSrc: null, error: undefined })));
           }}
           disabled={isEnhancingAll}
-          customPrompt={customAiPrompt}
-          onCustomPromptChange={setCustomAiPrompt}
-          transparencyThreshold={transparencyThreshold}
-          onTransparencyThresholdChange={setTransparencyThreshold}
         />
 
         {images.length > 0 && (

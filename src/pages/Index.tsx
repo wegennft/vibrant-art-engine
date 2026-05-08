@@ -46,6 +46,7 @@ const Index = () => {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isEnhancingAll, setIsEnhancingAll] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(ENHANCE_PRESETS[0].id);
+  const [aiPrompt, setAiPrompt] = useState("");
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
@@ -95,7 +96,7 @@ const Index = () => {
           body: {
             imageBase64: image!.originalSrc,
             fileName: image!.fileName,
-            prompt: preset.options.aiPrompt,
+            prompt: aiPrompt.trim() || preset.options.aiPrompt,
             width: img.naturalWidth,
             height: img.naturalHeight,
           },
@@ -128,7 +129,7 @@ const Index = () => {
       toast.error(message);
       return false;
     }
-  }, [images, selectedPreset]);
+  }, [images, selectedPreset, aiPrompt]);
 
   const enhanceAll = useCallback(async () => {
     const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);
@@ -312,6 +313,8 @@ const Index = () => {
             setSelectedPreset(id);
             setImages((prev) => prev.map((img) => ({ ...img, enhancedSrc: null, error: undefined })));
           }}
+          aiPrompt={aiPrompt}
+          onAiPromptChange={setAiPrompt}
           disabled={isEnhancingAll}
         />
 

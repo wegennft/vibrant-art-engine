@@ -260,7 +260,7 @@ const Index = () => {
           });
           const data = await response.json().catch(() => null);
           if (response.status === 402 || data?.code === "INSUFFICIENT_CREDITS") {
-            setBuyOpen(true);
+            if (!isAdmin) setBuyOpen(true);
             throw new Error(data?.error || "Insufficient credits. Top up to continue.");
           }
           if (!response.ok) throw new Error(data?.error || `AI enhancement failed (${response.status})`);

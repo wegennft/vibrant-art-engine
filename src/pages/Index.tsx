@@ -226,8 +226,14 @@ const Index = () => {
 
         const invokeAI = async (prompt: string) => {
           const smallBase64 = await downscaleForAI(image!.originalSrc);
-          const { data: sessionData } = await supabase.auth.getSession();
-          const token = sessionData.session?.access_token;
+          let { data: sessionData } = await supabase.auth.getSession();
+          let token = sessionData.session?.access_token;
+          const expiresAt = sessionData.session?.expires_at ?? 0;
+          // Refresh if missing or expiring within 60s
+          if (!token || expiresAt * 1000 - Date.now() < 60_000) {
+            const { data: refreshed } = await supabase.auth.refreshSession();
+            token = refreshed.session?.access_token ?? token;
+          }
           if (!token) throw new Error("Sign in to use AI enhancement");
           const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/enhance-image`, {
             method: "POST",
@@ -247,6 +253,10 @@ const Index = () => {
             }),
           });
           const data = await response.json().catch(() => null);
+          if (response.status === 401 || data?.code === "AUTH_EXPIRED") {
+            await supabase.auth.signOut();
+            throw new Error("Your session expired. Please sign in again.");
+          }
           if (response.status === 402 || data?.code === "INSUFFICIENT_CREDITS") {
             throw new Error(data?.error || "Service unavailable. Please try again.");
           }

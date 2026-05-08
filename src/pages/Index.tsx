@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, Download, Trash2, StopCircle, Flame, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,13 +7,17 @@ import ImageUploader from "@/components/ImageUploader";
 import BeforeAfterCard from "@/components/BeforeAfterCard";
 import EnhancePresetTabs from "@/components/EnhancePresetTabs";
 import CreditStatusPanel from "@/components/CreditStatusPanel";
+import BuyCreditsDialog from "@/components/BuyCreditsDialog";
+import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { enhanceImageCanvas } from "@/lib/enhanceImage";
 import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
 import { useAuth } from "@/hooks/useAuth";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { useUserCredits } from "@/hooks/useUserCredits";
+import { supabase } from "@/integrations/supabase/client";
 
-const CREDITS_EXHAUSTED_KEY = "ai_credits_exhausted_at";
-const EXHAUSTED_TTL_MS = 60 * 60 * 1000; // auto-recheck after 1h
+const CREDIT_COST_PER_ENHANCE = 2;
+
 
 interface AlphaDiffStats {
   totalPixels: number;

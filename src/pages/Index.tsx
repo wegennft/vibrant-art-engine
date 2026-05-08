@@ -537,7 +537,7 @@ const Index = () => {
               ) : (
                 <Button
                   onClick={enhanceAll}
-                  disabled={images.every((i) => i.enhancedSrc)}
+                  disabled={images.every((i) => i.enhancedSrc) || (isAiPreset && creditsExhausted)}
                   className="font-display text-xs uppercase tracking-wider text-accent-foreground hover:shadow-[0_0_25px_hsl(270,85%,55%,0.5)] transition-shadow"
                   style={{
                     fontFamily: "'Russo One', sans-serif",

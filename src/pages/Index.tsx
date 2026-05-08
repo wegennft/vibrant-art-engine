@@ -304,7 +304,7 @@ const Index = () => {
       );
       toast.error(message);
     }
-  }, [images, selectedPreset, customAiPrompt, transparencyThreshold]);
+  }, [images, selectedPreset, customAiPrompt, transparencyThreshold, creditsExhausted, markExhausted]);
 
   const enhanceAll = useCallback(async () => {
     const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);

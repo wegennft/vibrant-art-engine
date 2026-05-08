@@ -285,7 +285,7 @@ const Index = () => {
       );
       toast.error(message);
     }
-  }, [images, selectedPreset, customAiPrompt, transparencyThreshold, user, isAdmin, credits, refetchCredits]);
+  }, [images, selectedPreset, customAiPrompt, transparencyThreshold, user, isAdmin]);
 
   const enhanceAll = useCallback(async () => {
     const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);

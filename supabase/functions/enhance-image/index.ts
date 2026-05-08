@@ -1,10 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+const CREDIT_COST = 2;
 
 async function callAIGateway(body: string, apiKey: string, maxRetries = 3): Promise<Response> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -39,10 +42,80 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Auth check
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return new Response(
+      JSON.stringify({ error: "Sign in to use AI enhancement" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const userClient = createClient(supabaseUrl, anonKey);
+  const token = authHeader.replace("Bearer ", "");
+  const { data: userData, error: userErr } = await userClient.auth.getUser(token);
+  if (userErr || !userData.user) {
+    return new Response(
+      JSON.stringify({ error: "Invalid auth token" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+  const userId = userData.user.id;
+  const adminClient = createClient(supabaseUrl, serviceKey);
+
+  // Check admin role — admins bypass credits
+  const { data: adminCheck } = await adminClient.rpc("has_role", {
+    _user_id: userId,
+    _role: "admin",
+  });
+  const isAdmin = !!adminCheck;
+
+  let creditsDeducted = false;
+  if (!isAdmin) {
+    const { data: newBalance, error: deductErr } = await adminClient.rpc("deduct_credits", {
+      _user_id: userId,
+      _amount: CREDIT_COST,
+      _description: "AI image enhancement",
+    });
+    if (deductErr) {
+      console.error("deduct_credits error:", deductErr);
+      return new Response(
+        JSON.stringify({ error: "Failed to check credits. Please try again." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (newBalance === null) {
+      return new Response(
+        JSON.stringify({ error: "Insufficient credits. Please top up to continue.", code: "INSUFFICIENT_CREDITS" }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    creditsDeducted = true;
+    console.log(`Deducted ${CREDIT_COST} credits from ${userId}. New balance: ${newBalance}`);
+  } else {
+    console.log(`Admin ${userId} — bypassing credit deduction`);
+  }
+
+  const refundIfNeeded = async () => {
+    if (!creditsDeducted) return;
+    await adminClient.rpc("add_credits", {
+      _user_id: userId,
+      _amount: CREDIT_COST,
+      _kind: "refund",
+      _description: "AI enhancement failed — refund",
+    });
+    creditsDeducted = false;
+  };
+
   try {
     const { imageBase64, fileName, prompt: customPrompt, width, height, transparentPercent } = await req.json();
 
     if (!imageBase64) {
+      await refundIfNeeded();
       return new Response(
         JSON.stringify({ error: "No image data provided" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -89,6 +162,7 @@ serve(async (req) => {
     if (!response.ok) {
       const errText = await response.text();
       console.error("AI gateway error:", response.status, errText);
+      await refundIfNeeded();
 
       if (response.status === 429) {
         return new Response(
@@ -98,12 +172,11 @@ serve(async (req) => {
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "Credits exhausted. Please add funds." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ error: "AI service temporarily unavailable. Your credits were not charged." }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       if (response.status === 400) {
-        // Return as fallback so client can gracefully handle (e.g. image too large)
         return new Response(
           JSON.stringify({ error: "Image could not be processed (it may be too large). Try a smaller image.", fallback: true }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -118,15 +191,12 @@ serve(async (req) => {
 
     const data = await response.json();
     console.log("AI response structure:", JSON.stringify(Object.keys(data)));
-    console.log("choices[0].message keys:", JSON.stringify(data.choices?.[0]?.message ? Object.keys(data.choices[0].message) : "no message"));
 
-    // Try multiple known response shapes
     let enhancedImage =
       data.choices?.[0]?.message?.images?.[0]?.image_url?.url
       ?? data.choices?.[0]?.message?.content?.[0]?.image_url?.url
       ?? null;
 
-    // Also check if content is an array with inline_data (Gemini style)
     if (!enhancedImage && Array.isArray(data.choices?.[0]?.message?.content)) {
       for (const part of data.choices[0].message.content) {
         if (part.type === "image_url" && part.image_url?.url) {
@@ -149,6 +219,7 @@ serve(async (req) => {
           : null;
       const errorMsg = textContent || "No enhanced image returned from AI";
       console.error("AI returned no image. Text:", errorMsg);
+      await refundIfNeeded();
       return new Response(
         JSON.stringify({ error: errorMsg, fallback: true }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -161,6 +232,7 @@ serve(async (req) => {
     );
   } catch (e) {
     console.error("enhance-image error:", e);
+    await refundIfNeeded();
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

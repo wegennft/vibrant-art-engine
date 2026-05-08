@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, Download, Trash2, StopCircle, Flame, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,13 +7,17 @@ import ImageUploader from "@/components/ImageUploader";
 import BeforeAfterCard from "@/components/BeforeAfterCard";
 import EnhancePresetTabs from "@/components/EnhancePresetTabs";
 import CreditStatusPanel from "@/components/CreditStatusPanel";
+import BuyCreditsDialog from "@/components/BuyCreditsDialog";
+import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { enhanceImageCanvas } from "@/lib/enhanceImage";
 import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
 import { useAuth } from "@/hooks/useAuth";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { useUserCredits } from "@/hooks/useUserCredits";
+import { supabase } from "@/integrations/supabase/client";
 
-const CREDITS_EXHAUSTED_KEY = "ai_credits_exhausted_at";
-const EXHAUSTED_TTL_MS = 60 * 60 * 1000; // auto-recheck after 1h
+const CREDIT_COST_PER_ENHANCE = 2;
+
 
 interface AlphaDiffStats {
   totalPixels: number;
@@ -137,31 +141,13 @@ const Index = () => {
     ENHANCE_PRESETS.find((p) => p.id === "ai-art")?.options.aiPrompt ?? ""
   );
   const [transparencyThreshold, setTransparencyThreshold] = useState(0.5);
-  const [creditsExhausted, setCreditsExhausted] = useState(false);
+  const [buyOpen, setBuyOpen] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const { credits, loading: creditsLoading, refetch: refetchCredits } = useUserCredits();
 
   const currentPreset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
   const isAiPreset = !!currentPreset.options.aiGenerate;
-
-  useEffect(() => {
-    const ts = localStorage.getItem(CREDITS_EXHAUSTED_KEY);
-    if (ts && Date.now() - Number(ts) < EXHAUSTED_TTL_MS) {
-      setCreditsExhausted(true);
-    } else if (ts) {
-      localStorage.removeItem(CREDITS_EXHAUSTED_KEY);
-    }
-  }, []);
-
-  const markExhausted = useCallback(() => {
-    localStorage.setItem(CREDITS_EXHAUSTED_KEY, String(Date.now()));
-    setCreditsExhausted(true);
-  }, []);
-
-  const resetExhausted = useCallback(() => {
-    localStorage.removeItem(CREDITS_EXHAUSTED_KEY);
-    setCreditsExhausted(false);
-    toast.info("Credit status reset — try enhancing again");
-  }, []);
+  const insufficientCredits = isAiPreset && !isAdmin && (credits?.balance ?? 0) < CREDIT_COST_PER_ENHANCE;
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
     const BATCH_SIZE = 5;
@@ -186,8 +172,13 @@ const Index = () => {
 
   const enhanceImage = useCallback(async (imageId: string) => {
     const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
-    if (preset.options.aiGenerate && creditsExhausted) {
-      toast.error("AI credits exhausted. Add funds in Workspace settings.");
+    if (preset.options.aiGenerate && !user) {
+      toast.error("Sign in to use AI enhancement");
+      return;
+    }
+    if (preset.options.aiGenerate && !isAdmin && (credits?.balance ?? 0) < CREDIT_COST_PER_ENHANCE) {
+      toast.error("Insufficient credits. Click Buy Credits to top up.");
+      setBuyOpen(true);
       return;
     }
     setImages((prev) =>
@@ -247,12 +238,15 @@ const Index = () => {
 
         const invokeAI = async (prompt: string) => {
           const smallBase64 = await downscaleForAI(image!.originalSrc);
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData.session?.access_token;
+          if (!token) throw new Error("Sign in to use AI enhancement");
           const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/enhance-image`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              Authorization: `Bearer ${token}`,
             },
             signal: abortControllerRef.current?.signal,
             body: JSON.stringify({
@@ -265,13 +259,14 @@ const Index = () => {
             }),
           });
           const data = await response.json().catch(() => null);
-          if (response.status === 402 || /credits? exhausted|payment_required|not enough credits/i.test(data?.error || "")) {
-            markExhausted();
-            throw new Error("AI credits exhausted. Add funds in Workspace settings.");
+          if (response.status === 402 || data?.code === "INSUFFICIENT_CREDITS") {
+            setBuyOpen(true);
+            throw new Error(data?.error || "Insufficient credits. Top up to continue.");
           }
           if (!response.ok) throw new Error(data?.error || `AI enhancement failed (${response.status})`);
           if (data?.fallback) throw new Error(data.error || "AI could not process this image");
           if (data?.error) throw new Error(data.error);
+          refetchCredits();
           return data.enhancedImage.startsWith("data:")
             ? data.enhancedImage
             : `data:image/png;base64,${data.enhancedImage}`;
@@ -304,7 +299,7 @@ const Index = () => {
       );
       toast.error(message);
     }
-  }, [images, selectedPreset, customAiPrompt, transparencyThreshold, creditsExhausted, markExhausted]);
+  }, [images, selectedPreset, customAiPrompt, transparencyThreshold, user, isAdmin, credits, refetchCredits]);
 
   const enhanceAll = useCallback(async () => {
     const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);
@@ -486,10 +481,14 @@ const Index = () => {
         />
 
         <CreditStatusPanel
-          exhausted={creditsExhausted}
+          isAdmin={isAdmin}
+          balance={credits?.balance ?? null}
+          loading={creditsLoading}
           isAiPreset={isAiPreset}
-          onReset={resetExhausted}
+          costPerEnhance={CREDIT_COST_PER_ENHANCE}
+          onBuyClick={() => setBuyOpen(true)}
         />
+        <BuyCreditsDialog open={buyOpen} onOpenChange={setBuyOpen} />
 
         {images.length > 0 && (
           <div className="flex items-center justify-between flex-wrap gap-3 carbon-surface border border-border rounded-lg p-4">
@@ -537,7 +536,7 @@ const Index = () => {
               ) : (
                 <Button
                   onClick={enhanceAll}
-                  disabled={images.every((i) => i.enhancedSrc) || (isAiPreset && creditsExhausted)}
+                  disabled={images.every((i) => i.enhancedSrc) || insufficientCredits}
                   className="font-display text-xs uppercase tracking-wider text-accent-foreground hover:shadow-[0_0_25px_hsl(270,85%,55%,0.5)] transition-shadow"
                   style={{
                     fontFamily: "'Russo One', sans-serif",

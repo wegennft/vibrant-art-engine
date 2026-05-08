@@ -137,13 +137,10 @@ const Index = () => {
     ENHANCE_PRESETS.find((p) => p.id === "ai-art")?.options.aiPrompt ?? ""
   );
   const [transparencyThreshold, setTransparencyThreshold] = useState(0.5);
-  const [buyOpen, setBuyOpen] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { credits, loading: creditsLoading, refetch: refetchCredits } = useUserCredits();
 
   const currentPreset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
   const isAiPreset = !!currentPreset.options.aiGenerate;
-  const insufficientCredits = isAiPreset && !isAdmin && (credits?.balance ?? 0) < CREDIT_COST_PER_ENHANCE;
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
     const BATCH_SIZE = 5;

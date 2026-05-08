@@ -11,7 +11,6 @@ import { enhanceImageCanvas } from "@/lib/enhanceImage";
 import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
 import { useAuth } from "@/hooks/useAuth";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
-import { supabase } from "@/integrations/supabase/client";
 
 
 
@@ -21,10 +20,6 @@ interface AlphaDiffStats {
   pixelsCleared: number;
   violatingPixels: number;
 }
-
-const TRANSPARENT_ALPHA = 0;
-const FULLY_OPAQUE_ALPHA = 255;
-const EDGE_PROTECTION_RADIUS = 2;
 
 interface ImageItem {
   id: string;
@@ -36,88 +31,6 @@ interface ImageItem {
   alphaDiff?: AlphaDiffStats;
 }
 
-const resizeToMatchOriginal = (originalSrc: string, aiSrc: string, transparencyThreshold = 0.005): Promise<{ dataUrl: string; alphaDiff: AlphaDiffStats }> =>
-  new Promise((resolve, reject) => {
-    const origImg = new Image();
-    origImg.onload = () => {
-      const aiImg = new Image();
-      aiImg.onload = () => {
-        const ow = origImg.naturalWidth;
-        const oh = origImg.naturalHeight;
-        const canvas = document.createElement("canvas");
-        canvas.width = ow;
-        canvas.height = oh;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) { reject(new Error("Canvas context failed")); return; }
-        ctx.drawImage(aiImg, 0, 0, ow, oh);
-        const origCanvas = document.createElement("canvas");
-        origCanvas.width = ow;
-        origCanvas.height = oh;
-        const origCtx = origCanvas.getContext("2d");
-        if (!origCtx) { reject(new Error("Canvas context failed")); return; }
-        origCtx.drawImage(origImg, 0, 0);
-        const origData = origCtx.getImageData(0, 0, ow, oh);
-        const aiData = ctx.getImageData(0, 0, ow, oh);
-        const totalPixels = ow * oh;
-        let transparentOriginal = 0;
-        for (let i = 3; i < origData.data.length; i += 4) {
-          if (origData.data[i] < FULLY_OPAQUE_ALPHA) transparentOriginal++;
-        }
-        const transparencyRatio = transparentOriginal / totalPixels;
-        const isTraitLayer = transparencyRatio > transparencyThreshold;
-        console.log(`[AI Art] Transparency ratio: ${(transparencyRatio * 100).toFixed(2)}%, isTraitLayer: ${isTraitLayer}`);
-        const isNearTransparency = (pixelIndex: number) => {
-          if (!isTraitLayer) return false;
-          const pixel = pixelIndex / 4;
-          const x = pixel % ow;
-          const y = Math.floor(pixel / ow);
-          for (let dy = -EDGE_PROTECTION_RADIUS; dy <= EDGE_PROTECTION_RADIUS; dy++) {
-            const ny = y + dy;
-            if (ny < 0 || ny >= oh) continue;
-            for (let dx = -EDGE_PROTECTION_RADIUS; dx <= EDGE_PROTECTION_RADIUS; dx++) {
-              const nx = x + dx;
-              if (nx < 0 || nx >= ow) continue;
-              const neighborAlpha = origData.data[(ny * ow + nx) * 4 + 3];
-              if (neighborAlpha < FULLY_OPAQUE_ALPHA) return true;
-            }
-          }
-          return false;
-        };
-        let pixelsCleared = 0;
-        for (let i = 0; i < origData.data.length; i += 4) {
-          const originalAlpha = origData.data[i + 3];
-          const aiAlpha = aiData.data[i + 3];
-          if (originalAlpha === TRANSPARENT_ALPHA) {
-            if (aiAlpha !== TRANSPARENT_ALPHA) pixelsCleared++;
-            aiData.data[i] = 0;
-            aiData.data[i + 1] = 0;
-            aiData.data[i + 2] = 0;
-          } else if (isTraitLayer && (originalAlpha < FULLY_OPAQUE_ALPHA || isNearTransparency(i))) {
-            aiData.data[i] = origData.data[i];
-            aiData.data[i + 1] = origData.data[i + 1];
-            aiData.data[i + 2] = origData.data[i + 2];
-          }
-          aiData.data[i + 3] = originalAlpha;
-        }
-        ctx.putImageData(aiData, 0, 0);
-        const repairedData = ctx.getImageData(0, 0, ow, oh);
-        let violatingPixels = 0;
-        for (let i = 3; i < origData.data.length; i += 4) {
-          if (origData.data[i] === TRANSPARENT_ALPHA && repairedData.data[i] !== TRANSPARENT_ALPHA) {
-            violatingPixels++;
-          }
-        }
-        const alphaDiff: AlphaDiffStats = { totalPixels, transparentOriginal, pixelsCleared, violatingPixels };
-        console.log(`[AI Art] Alpha diff:`, alphaDiff);
-        resolve({ dataUrl: canvas.toDataURL("image/png"), alphaDiff });
-      };
-      aiImg.onerror = () => reject(new Error("Failed to load AI image"));
-      aiImg.src = aiSrc;
-    };
-    origImg.onerror = () => reject(new Error("Failed to load original image"));
-    origImg.src = originalSrc;
-  });
-
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -125,45 +38,6 @@ const fileToBase64 = (file: File): Promise<string> =>
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
-
-const TOKEN_REFRESH_MARGIN_MS = 5 * 60_000;
-
-const getJwtExpiryMs = (token: string): number | null => {
-  try {
-    const payload = token.split(".")[1];
-    if (!payload) return null;
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-    const decoded = JSON.parse(atob(padded));
-    return typeof decoded.exp === "number" ? decoded.exp * 1000 : null;
-  } catch {
-    return null;
-  }
-};
-
-const getFreshAccessToken = async (forceRefresh = false): Promise<string> => {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) throw new Error("Session expired. Please sign in again.");
-
-  const session = sessionData.session;
-  if (!session?.access_token) throw new Error("Sign in to use AI enhancement");
-
-  const jwtExpiryMs = getJwtExpiryMs(session.access_token);
-  const sessionExpiryMs = session.expires_at ? session.expires_at * 1000 : null;
-  const expiresAtMs = Math.min(...[jwtExpiryMs, sessionExpiryMs].filter((value): value is number => typeof value === "number"));
-  const shouldRefresh = forceRefresh || !Number.isFinite(expiresAtMs) || expiresAtMs - Date.now() < TOKEN_REFRESH_MARGIN_MS;
-
-  if (!shouldRefresh) return session.access_token;
-
-  const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession({
-    refresh_token: session.refresh_token,
-  });
-  if (refreshError || !refreshed.session?.access_token) {
-    throw new Error("Session expired. Please sign in again.");
-  }
-
-  return refreshed.session.access_token;
-};
 
 const Index = () => {
   const { user, isAdmin, signOut } = useAuth();

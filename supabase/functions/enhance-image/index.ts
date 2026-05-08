@@ -162,6 +162,7 @@ serve(async (req) => {
     if (!response.ok) {
       const errText = await response.text();
       console.error("AI gateway error:", response.status, errText);
+      await refundIfNeeded();
 
       if (response.status === 429) {
         return new Response(
@@ -171,12 +172,11 @@ serve(async (req) => {
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "Credits exhausted. Please add funds." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ error: "AI service temporarily unavailable. Your credits were not charged." }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       if (response.status === 400) {
-        // Return as fallback so client can gracefully handle (e.g. image too large)
         return new Response(
           JSON.stringify({ error: "Image could not be processed (it may be too large). Try a smaller image.", fallback: true }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -191,15 +191,12 @@ serve(async (req) => {
 
     const data = await response.json();
     console.log("AI response structure:", JSON.stringify(Object.keys(data)));
-    console.log("choices[0].message keys:", JSON.stringify(data.choices?.[0]?.message ? Object.keys(data.choices[0].message) : "no message"));
 
-    // Try multiple known response shapes
     let enhancedImage =
       data.choices?.[0]?.message?.images?.[0]?.image_url?.url
       ?? data.choices?.[0]?.message?.content?.[0]?.image_url?.url
       ?? null;
 
-    // Also check if content is an array with inline_data (Gemini style)
     if (!enhancedImage && Array.isArray(data.choices?.[0]?.message?.content)) {
       for (const part of data.choices[0].message.content) {
         if (part.type === "image_url" && part.image_url?.url) {
@@ -222,6 +219,7 @@ serve(async (req) => {
           : null;
       const errorMsg = textContent || "No enhanced image returned from AI";
       console.error("AI returned no image. Text:", errorMsg);
+      await refundIfNeeded();
       return new Response(
         JSON.stringify({ error: errorMsg, fallback: true }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -234,6 +232,7 @@ serve(async (req) => {
     );
   } catch (e) {
     console.error("enhance-image error:", e);
+    await refundIfNeeded();
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

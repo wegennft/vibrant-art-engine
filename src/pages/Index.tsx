@@ -229,7 +229,7 @@ const Index = () => {
           const { data: sessionData } = await supabase.auth.getSession();
           let token = sessionData.session?.access_token;
           const expiresAt = sessionData.session?.expires_at ?? 0;
-          const shouldRefresh = !token || expiresAt * 1000 - Date.now() < 60_000;
+          const shouldRefresh = !token || expiresAt * 1000 - Date.now() < 5 * 60_000;
           if (shouldRefresh) {
             const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
             if (refreshError || !refreshed.session?.access_token) {

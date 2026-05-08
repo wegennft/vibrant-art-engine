@@ -265,45 +265,42 @@ const Index = () => {
 
         const invokeAI = async (prompt: string) => {
           const smallBase64 = await downscaleForAI(image!.originalSrc);
-          const { data: sessionData } = await supabase.auth.getSession();
-          let token = sessionData.session?.access_token;
-          const expiresAt = sessionData.session?.expires_at ?? 0;
-          const shouldRefresh = !token || expiresAt * 1000 - Date.now() < 5 * 60_000;
-          if (shouldRefresh) {
-            const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
-            if (refreshError || !refreshed.session?.access_token) {
-              throw new Error("Session expired. Please sign in again.");
-            }
-            token = refreshed.session.access_token;
-          }
-          if (!token) throw new Error("Sign in to use AI enhancement");
-          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/enhance-image`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-              Authorization: `Bearer ${token}`,
-            },
-            signal: abortControllerRef.current?.signal,
-            body: JSON.stringify({
+          const body = JSON.stringify({
               imageBase64: smallBase64,
               fileName: image!.fileName,
               prompt,
               width: origInfo.width,
               height: origInfo.height,
               transparentPercent: origInfo.transparentPercent,
-            }),
-          });
+            });
+          const callEnhanceFunction = async (forceRefresh = false) => {
+            const token = await getFreshAccessToken(forceRefresh);
+            return fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/enhance-image`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                Authorization: `Bearer ${token}`,
+              },
+              signal: abortControllerRef.current?.signal,
+              body,
+            });
+          };
+          let response = await callEnhanceFunction();
           const data = await response.json().catch(() => null);
-          if (response.status === 402 || data?.code === "INSUFFICIENT_CREDITS") {
-            throw new Error(data?.error || "Service unavailable. Please try again.");
+          if (response.status === 401 && data?.code === "AUTH_EXPIRED") {
+            response = await callEnhanceFunction(true);
           }
-          if (!response.ok) throw new Error(data?.error || `AI enhancement failed (${response.status})`);
-          if (data?.fallback) throw new Error(data.error || "AI could not process this image");
-          if (data?.error) throw new Error(data.error);
-          return data.enhancedImage.startsWith("data:")
-            ? data.enhancedImage
-            : `data:image/png;base64,${data.enhancedImage}`;
+          const resultData = response === undefined ? data : await response.json().catch(() => null);
+          if (response.status === 402 || data?.code === "INSUFFICIENT_CREDITS") {
+            throw new Error(resultData?.error || "Service unavailable. Please try again.");
+          }
+          if (!response.ok) throw new Error(resultData?.error || `AI enhancement failed (${response.status})`);
+          if (resultData?.fallback) throw new Error(resultData.error || "AI could not process this image");
+          if (resultData?.error) throw new Error(resultData.error);
+          return resultData.enhancedImage.startsWith("data:")
+            ? resultData.enhancedImage
+            : `data:image/png;base64,${resultData.enhancedImage}`;
         };
         const basePrompt = customAiPrompt || preset.options.aiPrompt || "";
         const aiResult = await invokeAI(basePrompt);

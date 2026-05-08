@@ -10,6 +10,7 @@ import { enhanceImageCanvas } from "@/lib/enhanceImage";
 import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
 import { useAuth } from "@/hooks/useAuth";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { supabase } from "@/integrations/supabase/client";
 
 
 
@@ -85,7 +86,26 @@ const Index = () => {
       }));
     try {
       const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
-      const enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
+      let enhanced: string;
+      if (preset.options.aiGenerate) {
+        const img = new Image();
+        img.src = image!.originalSrc;
+        await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error("Failed to load image")); });
+        const { data, error } = await supabase.functions.invoke("enhance-image", {
+          body: {
+            imageBase64: image!.originalSrc,
+            fileName: image!.fileName,
+            prompt: preset.options.aiPrompt,
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+          },
+        });
+        if (error) throw new Error(error.message || "AI enhancement failed");
+        if (!data?.enhancedImage) throw new Error(data?.error || "No enhanced image returned");
+        enhanced = data.enhancedImage;
+      } else {
+        enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
+      }
       setImages((prev) =>
         prev.map((img) =>
           img.id === imageId

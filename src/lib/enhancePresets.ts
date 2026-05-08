@@ -28,4 +28,15 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
       contrastBoost: 0.30,
     },
   },
+  {
+    id: "ai-art",
+    name: "AI Art",
+    description: "Routes through the AI gateway for a generative pass — preserves transparency, costs credits",
+    options: {
+      saturationBoost: 0,
+      brightnessBoost: 0,
+      contrastBoost: 0,
+      aiGenerate: true,
+    },
+  },
 ];

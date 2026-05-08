@@ -172,8 +172,13 @@ const Index = () => {
 
   const enhanceImage = useCallback(async (imageId: string) => {
     const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
-    if (preset.options.aiGenerate && creditsExhausted) {
-      toast.error("AI credits exhausted. Add funds in Workspace settings.");
+    if (preset.options.aiGenerate && !user) {
+      toast.error("Sign in to use AI enhancement");
+      return;
+    }
+    if (preset.options.aiGenerate && !isAdmin && (credits?.balance ?? 0) < CREDIT_COST_PER_ENHANCE) {
+      toast.error("Insufficient credits. Click Buy Credits to top up.");
+      setBuyOpen(true);
       return;
     }
     setImages((prev) =>
@@ -233,12 +238,15 @@ const Index = () => {
 
         const invokeAI = async (prompt: string) => {
           const smallBase64 = await downscaleForAI(image!.originalSrc);
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData.session?.access_token;
+          if (!token) throw new Error("Sign in to use AI enhancement");
           const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/enhance-image`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              Authorization: `Bearer ${token}`,
             },
             signal: abortControllerRef.current?.signal,
             body: JSON.stringify({
@@ -251,13 +259,14 @@ const Index = () => {
             }),
           });
           const data = await response.json().catch(() => null);
-          if (response.status === 402 || /credits? exhausted|payment_required|not enough credits/i.test(data?.error || "")) {
-            markExhausted();
-            throw new Error("AI credits exhausted. Add funds in Workspace settings.");
+          if (response.status === 402 || data?.code === "INSUFFICIENT_CREDITS") {
+            setBuyOpen(true);
+            throw new Error(data?.error || "Insufficient credits. Top up to continue.");
           }
           if (!response.ok) throw new Error(data?.error || `AI enhancement failed (${response.status})`);
           if (data?.fallback) throw new Error(data.error || "AI could not process this image");
           if (data?.error) throw new Error(data.error);
+          refetchCredits();
           return data.enhancedImage.startsWith("data:")
             ? data.enhancedImage
             : `data:image/png;base64,${data.enhancedImage}`;

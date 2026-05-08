@@ -129,7 +129,7 @@ const Index = () => {
       toast.error(message);
       return false;
     }
-  }, [images, selectedPreset]);
+  }, [images, selectedPreset, aiPrompt]);
 
   const enhanceAll = useCallback(async () => {
     const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);

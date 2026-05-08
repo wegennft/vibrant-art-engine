@@ -59,7 +59,7 @@ export const useUserCredits = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, isAdmin]);
 
   return { credits, loading, isAdmin, refetch: fetchCredits };
 };

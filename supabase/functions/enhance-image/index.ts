@@ -57,14 +57,15 @@ serve(async (req) => {
 
   const userClient = createClient(supabaseUrl, anonKey);
   const token = authHeader.replace("Bearer ", "");
-  const { data: userData, error: userErr } = await userClient.auth.getUser(token);
-  if (userErr || !userData.user) {
+  const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
+  if (claimsErr || !claimsData?.claims?.sub) {
+    console.error("getClaims error:", claimsErr);
     return new Response(
       JSON.stringify({ error: "Invalid auth token" }),
       { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-  const userId = userData.user.id;
+  const userId = claimsData.claims.sub;
   const adminClient = createClient(supabaseUrl, serviceKey);
 
   // Check admin role — admins bypass credits

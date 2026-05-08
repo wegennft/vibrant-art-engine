@@ -57,15 +57,20 @@ serve(async (req) => {
 
   const userClient = createClient(supabaseUrl, anonKey);
   const token = authHeader.replace("Bearer ", "");
-  const { data: userData, error: userErr } = await userClient.auth.getUser(token);
-  if (userErr || !userData.user) {
-    console.error("getUser failed:", userErr);
+  let userId: string;
+  try {
+    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
+    if (claimsErr || !claimsData?.claims?.sub) {
+      throw claimsErr ?? new Error("No claims");
+    }
+    userId = claimsData.claims.sub;
+  } catch (e) {
+    console.error("getClaims failed:", e);
     return new Response(
       JSON.stringify({ error: "Session expired. Please sign in again.", code: "AUTH_EXPIRED" }),
       { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-  const userId = userData.user.id;
   const adminClient = createClient(supabaseUrl, serviceKey);
 
   // Check admin role — admins bypass credits

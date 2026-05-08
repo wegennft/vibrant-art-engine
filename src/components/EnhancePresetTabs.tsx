@@ -1,25 +1,29 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
+import { Slider } from "@/components/ui/slider";
+import { ENHANCE_PRESETS, type EnhancePreset } from "@/lib/enhancePresets";
 
 interface EnhancePresetTabsProps {
   selectedPreset: string;
   onPresetChange: (presetId: string) => void;
-  aiPrompt: string;
-  onAiPromptChange: (value: string) => void;
   disabled?: boolean;
+  customPrompt?: string;
+  onCustomPromptChange?: (prompt: string) => void;
+  transparencyThreshold?: number;
+  onTransparencyThresholdChange?: (value: number) => void;
 }
 
 const EnhancePresetTabs = ({
   selectedPreset,
   onPresetChange,
-  aiPrompt,
-  onAiPromptChange,
   disabled,
+  customPrompt,
+  onCustomPromptChange,
+  transparencyThreshold = 0.5,
+  onTransparencyThresholdChange,
 }: EnhancePresetTabsProps) => {
   const current = ENHANCE_PRESETS.find((p) => p.id === selectedPreset);
-  const showAiPrompt = !!current?.options.aiGenerate;
+  const isAiPreset = current?.options.aiGenerate;
 
   return (
     <div className="space-y-3">
@@ -41,23 +45,42 @@ const EnhancePresetTabs = ({
       {current && (
         <p className="text-xs text-muted-foreground">{current.description}</p>
       )}
-      {showAiPrompt && (
-        <div className="space-y-2 carbon-surface border border-border rounded-none p-3">
-          <Label
-            htmlFor="ai-prompt"
-            className="text-xs uppercase tracking-widest text-accent"
-            style={{ fontFamily: "'Orbitron', sans-serif" }}
-          >
-            AI Prompt (optional)
-          </Label>
-          <Textarea
-            id="ai-prompt"
-            value={aiPrompt}
-            onChange={(e) => onAiPromptChange(e.target.value)}
-            disabled={disabled}
-            placeholder="e.g. Boost neon glow on the trim, keep the rest untouched. Leave blank for default saturation/brightness boost."
-            className="min-h-[80px] text-sm bg-background/40 border-border"
-          />
+      {isAiPreset && (
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">
+              AI Prompt (customize the style)
+            </label>
+            <Textarea
+              value={customPrompt ?? current?.options.aiPrompt ?? ""}
+              onChange={(e) => onCustomPromptChange?.(e.target.value)}
+              disabled={disabled}
+              placeholder="Describe how you want the AI to transform your images..."
+              className="min-h-[80px] text-sm bg-muted/30 border-border"
+            />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-muted-foreground">
+                Trait Layer Threshold
+              </label>
+              <span className="text-xs font-mono text-accent">
+                {transparencyThreshold.toFixed(1)}%
+              </span>
+            </div>
+            <Slider
+              value={[transparencyThreshold]}
+              onValueChange={([v]) => onTransparencyThresholdChange?.(v)}
+              min={0}
+              max={10}
+              step={0.1}
+              disabled={disabled}
+              className="w-full"
+            />
+            <p className="text-[10px] text-muted-foreground/70">
+              Images with more than {transparencyThreshold.toFixed(1)}% transparent pixels are treated as trait layers (edge protection on). Lower = more images treated as full art.
+            </p>
+          </div>
         </div>
       )}
     </div>

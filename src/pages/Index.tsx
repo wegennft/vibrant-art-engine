@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";
 import BeforeAfterCard from "@/components/BeforeAfterCard";
 import EnhancePresetTabs from "@/components/EnhancePresetTabs";
+import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { enhanceImageCanvas } from "@/lib/enhanceImage";
 import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +22,10 @@ interface AlphaDiffStats {
   violatingPixels: number;
 }
 
+const TRANSPARENT_ALPHA = 0;
+const FULLY_OPAQUE_ALPHA = 255;
+const EDGE_PROTECTION_RADIUS = 2;
+
 interface ImageItem {
   id: string;
   fileName: string;
@@ -30,6 +35,88 @@ interface ImageItem {
   error?: string;
   alphaDiff?: AlphaDiffStats;
 }
+
+const resizeToMatchOriginal = (originalSrc: string, aiSrc: string, transparencyThreshold = 0.005): Promise<{ dataUrl: string; alphaDiff: AlphaDiffStats }> =>
+  new Promise((resolve, reject) => {
+    const origImg = new Image();
+    origImg.onload = () => {
+      const aiImg = new Image();
+      aiImg.onload = () => {
+        const ow = origImg.naturalWidth;
+        const oh = origImg.naturalHeight;
+        const canvas = document.createElement("canvas");
+        canvas.width = ow;
+        canvas.height = oh;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("Canvas context failed")); return; }
+        ctx.drawImage(aiImg, 0, 0, ow, oh);
+        const origCanvas = document.createElement("canvas");
+        origCanvas.width = ow;
+        origCanvas.height = oh;
+        const origCtx = origCanvas.getContext("2d");
+        if (!origCtx) { reject(new Error("Canvas context failed")); return; }
+        origCtx.drawImage(origImg, 0, 0);
+        const origData = origCtx.getImageData(0, 0, ow, oh);
+        const aiData = ctx.getImageData(0, 0, ow, oh);
+        const totalPixels = ow * oh;
+        let transparentOriginal = 0;
+        for (let i = 3; i < origData.data.length; i += 4) {
+          if (origData.data[i] < FULLY_OPAQUE_ALPHA) transparentOriginal++;
+        }
+        const transparencyRatio = transparentOriginal / totalPixels;
+        const isTraitLayer = transparencyRatio > transparencyThreshold;
+        console.log(`[AI Art] Transparency ratio: ${(transparencyRatio * 100).toFixed(2)}%, isTraitLayer: ${isTraitLayer}`);
+        const isNearTransparency = (pixelIndex: number) => {
+          if (!isTraitLayer) return false;
+          const pixel = pixelIndex / 4;
+          const x = pixel % ow;
+          const y = Math.floor(pixel / ow);
+          for (let dy = -EDGE_PROTECTION_RADIUS; dy <= EDGE_PROTECTION_RADIUS; dy++) {
+            const ny = y + dy;
+            if (ny < 0 || ny >= oh) continue;
+            for (let dx = -EDGE_PROTECTION_RADIUS; dx <= EDGE_PROTECTION_RADIUS; dx++) {
+              const nx = x + dx;
+              if (nx < 0 || nx >= ow) continue;
+              const neighborAlpha = origData.data[(ny * ow + nx) * 4 + 3];
+              if (neighborAlpha < FULLY_OPAQUE_ALPHA) return true;
+            }
+          }
+          return false;
+        };
+        let pixelsCleared = 0;
+        for (let i = 0; i < origData.data.length; i += 4) {
+          const originalAlpha = origData.data[i + 3];
+          const aiAlpha = aiData.data[i + 3];
+          if (originalAlpha === TRANSPARENT_ALPHA) {
+            if (aiAlpha !== TRANSPARENT_ALPHA) pixelsCleared++;
+            aiData.data[i] = 0;
+            aiData.data[i + 1] = 0;
+            aiData.data[i + 2] = 0;
+          } else if (isTraitLayer && (originalAlpha < FULLY_OPAQUE_ALPHA || isNearTransparency(i))) {
+            aiData.data[i] = origData.data[i];
+            aiData.data[i + 1] = origData.data[i + 1];
+            aiData.data[i + 2] = origData.data[i + 2];
+          }
+          aiData.data[i + 3] = originalAlpha;
+        }
+        ctx.putImageData(aiData, 0, 0);
+        const repairedData = ctx.getImageData(0, 0, ow, oh);
+        let violatingPixels = 0;
+        for (let i = 3; i < origData.data.length; i += 4) {
+          if (origData.data[i] === TRANSPARENT_ALPHA && repairedData.data[i] !== TRANSPARENT_ALPHA) {
+            violatingPixels++;
+          }
+        }
+        const alphaDiff: AlphaDiffStats = { totalPixels, transparentOriginal, pixelsCleared, violatingPixels };
+        console.log(`[AI Art] Alpha diff:`, alphaDiff);
+        resolve({ dataUrl: canvas.toDataURL("image/png"), alphaDiff });
+      };
+      aiImg.onerror = () => reject(new Error("Failed to load AI image"));
+      aiImg.src = aiSrc;
+    };
+    origImg.onerror = () => reject(new Error("Failed to load original image"));
+    origImg.src = originalSrc;
+  });
 
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -46,8 +133,14 @@ const Index = () => {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isEnhancingAll, setIsEnhancingAll] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(ENHANCE_PRESETS[0].id);
-  const [aiPrompt, setAiPrompt] = useState("");
+  const [customAiPrompt, setCustomAiPrompt] = useState<string>(
+    ENHANCE_PRESETS.find((p) => p.id === "ai-art")?.options.aiPrompt ?? ""
+  );
+  const [transparencyThreshold, setTransparencyThreshold] = useState(0.5);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const currentPreset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
+  const isAiPreset = !!currentPreset.options.aiGenerate;
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
     const BATCH_SIZE = 5;
@@ -70,8 +163,12 @@ const Index = () => {
     }
   }, []);
 
-  const enhanceImage = useCallback(async (imageId: string): Promise<boolean> => {
+  const enhanceImage = useCallback(async (imageId: string) => {
     const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
+    if (preset.options.aiGenerate && !user) {
+      toast.error("Sign in to use AI enhancement");
+      return;
+    }
     setImages((prev) =>
       prev.map((img) =>
         img.id === imageId ? { ...img, isProcessing: true, error: undefined } : img
@@ -88,37 +185,97 @@ const Index = () => {
     try {
       const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
       let enhanced: string;
+      let alphaDiffStats: AlphaDiffStats | undefined;
       if (preset.options.aiGenerate) {
-        const img = new Image();
-        img.src = image!.originalSrc;
-        await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error("Failed to load image")); });
-        const { data, error } = await supabase.functions.invoke("enhance-image", {
-          body: {
-            imageBase64: image!.originalSrc,
-            fileName: image!.fileName,
-            prompt: aiPrompt.trim() || preset.options.aiPrompt,
-            width: img.naturalWidth,
-            height: img.naturalHeight,
-          },
+        // Calculate original dimensions and transparency percentage
+        const origInfo = await new Promise<{ width: number; height: number; transparentPercent: number }>((res) => {
+          const img = new Image();
+          img.onload = () => {
+            const c = document.createElement("canvas");
+            c.width = img.naturalWidth;
+            c.height = img.naturalHeight;
+            const cx = c.getContext("2d");
+            if (!cx) { res({ width: img.naturalWidth, height: img.naturalHeight, transparentPercent: 0 }); return; }
+            cx.drawImage(img, 0, 0);
+            const d = cx.getImageData(0, 0, c.width, c.height).data;
+            let transparent = 0;
+            for (let i = 3; i < d.length; i += 4) { if (d[i] === 0) transparent++; }
+            res({ width: img.naturalWidth, height: img.naturalHeight, transparentPercent: (transparent / (c.width * c.height)) * 100 });
+          };
+          img.src = image!.originalSrc;
         });
-        if (error) throw new Error(error.message || "AI enhancement failed");
-        if (!data?.enhancedImage) throw new Error(data?.error || "No enhanced image returned");
-        enhanced = data.enhancedImage;
+        // Downscale large images before sending to AI to avoid payload limits
+        const downscaleForAI = (src: string, maxDim = 1024): Promise<string> => {
+          return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+              const { naturalWidth: w, naturalHeight: h } = img;
+              if (w <= maxDim && h <= maxDim) { resolve(src); return; }
+              const scale = maxDim / Math.max(w, h);
+              const nw = Math.round(w * scale);
+              const nh = Math.round(h * scale);
+              const c = document.createElement("canvas");
+              c.width = nw; c.height = nh;
+              const cx = c.getContext("2d")!;
+              cx.drawImage(img, 0, 0, nw, nh);
+              resolve(c.toDataURL("image/png"));
+            };
+            img.src = src;
+          });
+        };
+
+        const invokeAI = async (prompt: string) => {
+          const smallBase64 = await downscaleForAI(image!.originalSrc);
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData.session?.access_token;
+          if (!token) throw new Error("Sign in to use AI enhancement");
+          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/enhance-image`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              Authorization: `Bearer ${token}`,
+            },
+            signal: abortControllerRef.current?.signal,
+            body: JSON.stringify({
+              imageBase64: smallBase64,
+              fileName: image!.fileName,
+              prompt,
+              width: origInfo.width,
+              height: origInfo.height,
+              transparentPercent: origInfo.transparentPercent,
+            }),
+          });
+          const data = await response.json().catch(() => null);
+          if (response.status === 402 || data?.code === "INSUFFICIENT_CREDITS") {
+            throw new Error(data?.error || "Service unavailable. Please try again.");
+          }
+          if (!response.ok) throw new Error(data?.error || `AI enhancement failed (${response.status})`);
+          if (data?.fallback) throw new Error(data.error || "AI could not process this image");
+          if (data?.error) throw new Error(data.error);
+          return data.enhancedImage.startsWith("data:")
+            ? data.enhancedImage
+            : `data:image/png;base64,${data.enhancedImage}`;
+        };
+        const basePrompt = customAiPrompt || preset.options.aiPrompt || "";
+        const aiResult = await invokeAI(basePrompt);
+        const result = await resizeToMatchOriginal(image!.originalSrc, aiResult, transparencyThreshold / 100);
+        enhanced = result.dataUrl;
+        alphaDiffStats = result.alphaDiff;
       } else {
         enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
       }
       setImages((prev) =>
         prev.map((img) =>
           img.id === imageId
-            ? { ...img, enhancedSrc: enhanced, isProcessing: false, alphaDiff: undefined }
+            ? { ...img, enhancedSrc: enhanced, isProcessing: false, alphaDiff: alphaDiffStats }
             : img
         )
       );
       toast.success(`Enhanced ${image?.fileName}`);
-      return true;
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") return false;
-      const message = err instanceof Error ? err.message : "Failed to enhance image";
+    } catch (err: any) {
+      if (err?.name === "AbortError") return;
+      const message = err?.message || "Failed to enhance image";
       setImages((prev) =>
         prev.map((img) =>
           img.id === imageId
@@ -127,9 +284,8 @@ const Index = () => {
         )
       );
       toast.error(message);
-      return false;
     }
-  }, [images, selectedPreset, aiPrompt]);
+  }, [images, selectedPreset, customAiPrompt, transparencyThreshold, user, isAdmin]);
 
   const enhanceAll = useCallback(async () => {
     const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);
@@ -140,24 +296,14 @@ const Index = () => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
     setIsEnhancingAll(true);
-    let successCount = 0;
-    let failureCount = 0;
     for (const img of unenhanced) {
       if (controller.signal.aborted) break;
-      const enhanced = await enhanceImage(img.id);
-      if (enhanced) successCount += 1;
-      else failureCount += 1;
+      await enhanceImage(img.id);
     }
     setIsEnhancingAll(false);
     abortControllerRef.current = null;
     if (!controller.signal.aborted) {
-      if (successCount > 0 && failureCount === 0) {
-        toast.success("All images enhanced!");
-      } else if (successCount > 0) {
-        toast.warning(`${successCount} enhanced, ${failureCount} failed`);
-      } else {
-        toast.error("No images were enhanced");
-      }
+      toast.success("All images enhanced!");
     }
   }, [images, enhanceImage]);
 
@@ -313,9 +459,11 @@ const Index = () => {
             setSelectedPreset(id);
             setImages((prev) => prev.map((img) => ({ ...img, enhancedSrc: null, error: undefined })));
           }}
-          aiPrompt={aiPrompt}
-          onAiPromptChange={setAiPrompt}
           disabled={isEnhancingAll}
+          customPrompt={customAiPrompt}
+          onCustomPromptChange={setCustomAiPrompt}
+          transparencyThreshold={transparencyThreshold}
+          onTransparencyThresholdChange={setTransparencyThreshold}
         />
 
         {images.length > 0 && (

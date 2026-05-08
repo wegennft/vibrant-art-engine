@@ -19,24 +19,15 @@ export const ENHANCE_PRESETS: EnhancePreset[] = [
     },
   },
   {
-    id: "trait-pop",
-    name: "Trait Pop",
-    description: "Stronger local color, brightness, and contrast pass that preserves pixel alignment and transparency",
-    options: {
-      saturationBoost: 1.05,
-      brightnessBoost: 0.18,
-      contrastBoost: 0.30,
-    },
-  },
-  {
     id: "ai-art",
     name: "AI Art",
-    description: "Routes through the AI gateway for a generative pass — preserves transparency, costs credits",
+    description: "AI-powered artistic re-imagination — generates a stylized version of each trait while keeping the same dimensions",
     options: {
       saturationBoost: 0,
       brightnessBoost: 0,
       contrastBoost: 0,
       aiGenerate: true,
+      aiPrompt: "Re-imagine this image as a stylized digital art piece. Keep the same subject, pose, and composition. Make it vibrant, polished, and visually striking. Maintain the EXACT same pixel dimensions. Preserve transparent areas (alpha=0) — do NOT add any background. Output as PNG.",
     },
   },
 ];

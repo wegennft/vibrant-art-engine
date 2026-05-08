@@ -14,7 +14,7 @@ export const useUserCredits = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchCredits = useCallback(async () => {
-    if (!user) {
+    if (!user || isAdmin) {
       setCredits(null);
       setLoading(false);
       return;
@@ -26,7 +26,7 @@ export const useUserCredits = () => {
       .maybeSingle();
     if (!error && data) setCredits(data);
     setLoading(false);
-  }, [user]);
+  }, [user, isAdmin]);
 
   useEffect(() => {
     fetchCredits();
@@ -34,7 +34,7 @@ export const useUserCredits = () => {
 
   // Realtime updates so balance refreshes after purchase / deduction
   useEffect(() => {
-    if (!user) return;
+    if (!user || isAdmin) return;
     const channel = supabase
       .channel(`credits-${user.id}`)
       .on(
@@ -59,7 +59,7 @@ export const useUserCredits = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, isAdmin]);
 
   return { credits, loading, isAdmin, refetch: fetchCredits };
 };

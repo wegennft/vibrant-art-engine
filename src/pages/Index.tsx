@@ -248,13 +248,11 @@ const Index = () => {
           });
           const data = await response.json().catch(() => null);
           if (response.status === 402 || data?.code === "INSUFFICIENT_CREDITS") {
-            if (!isAdmin) setBuyOpen(true);
-            throw new Error(data?.error || "Insufficient credits. Top up to continue.");
+            throw new Error(data?.error || "Service unavailable. Please try again.");
           }
           if (!response.ok) throw new Error(data?.error || `AI enhancement failed (${response.status})`);
           if (data?.fallback) throw new Error(data.error || "AI could not process this image");
           if (data?.error) throw new Error(data.error);
-          refetchCredits();
           return data.enhancedImage.startsWith("data:")
             ? data.enhancedImage
             : `data:image/png;base64,${data.enhancedImage}`;

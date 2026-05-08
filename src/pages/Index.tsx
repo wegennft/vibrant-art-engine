@@ -313,6 +313,8 @@ const Index = () => {
             setSelectedPreset(id);
             setImages((prev) => prev.map((img) => ({ ...img, enhancedSrc: null, error: undefined })));
           }}
+          aiPrompt={aiPrompt}
+          onAiPromptChange={setAiPrompt}
           disabled={isEnhancingAll}
         />
 

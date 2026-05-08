@@ -5,10 +5,6 @@ interface EnhancePresetTabsProps {
   selectedPreset: string;
   onPresetChange: (presetId: string) => void;
   disabled?: boolean;
-  customPrompt?: string;
-  onCustomPromptChange?: (prompt: string) => void;
-  transparencyThreshold?: number;
-  onTransparencyThresholdChange?: (value: number) => void;
 }
 
 const EnhancePresetTabs = ({

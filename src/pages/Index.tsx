@@ -226,13 +226,16 @@ const Index = () => {
 
         const invokeAI = async (prompt: string) => {
           const smallBase64 = await downscaleForAI(image!.originalSrc);
-          let { data: sessionData } = await supabase.auth.getSession();
+          const { data: sessionData } = await supabase.auth.getSession();
           let token = sessionData.session?.access_token;
-          // Refresh if missing or expiring within 60s
           const expiresAt = sessionData.session?.expires_at ?? 0;
-          if (!token || expiresAt * 1000 - Date.now() < 60_000) {
-            const { data: refreshed } = await supabase.auth.refreshSession();
-            token = refreshed.session?.access_token ?? token;
+          const shouldRefresh = !token || expiresAt * 1000 - Date.now() < 60_000;
+          if (shouldRefresh) {
+            const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+            if (refreshError || !refreshed.session?.access_token) {
+              throw new Error("Session expired. Please sign in again.");
+            }
+            token = refreshed.session.access_token;
           }
           if (!token) throw new Error("Sign in to use AI enhancement");
           const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/enhance-image`, {

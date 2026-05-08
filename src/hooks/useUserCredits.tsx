@@ -34,7 +34,7 @@ export const useUserCredits = () => {
 
   // Realtime updates so balance refreshes after purchase / deduction
   useEffect(() => {
-    if (!user) return;
+    if (!user || isAdmin) return;
     const channel = supabase
       .channel(`credits-${user.id}`)
       .on(

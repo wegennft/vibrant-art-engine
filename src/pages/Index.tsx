@@ -287,20 +287,20 @@ const Index = () => {
             });
           };
           let response = await callEnhanceFunction();
-          const data = await response.json().catch(() => null);
+          let data = await response.json().catch(() => null);
           if (response.status === 401 && data?.code === "AUTH_EXPIRED") {
             response = await callEnhanceFunction(true);
+            data = await response.json().catch(() => null);
           }
-          const resultData = response === undefined ? data : await response.json().catch(() => null);
           if (response.status === 402 || data?.code === "INSUFFICIENT_CREDITS") {
-            throw new Error(resultData?.error || "Service unavailable. Please try again.");
+            throw new Error(data?.error || "Service unavailable. Please try again.");
           }
-          if (!response.ok) throw new Error(resultData?.error || `AI enhancement failed (${response.status})`);
-          if (resultData?.fallback) throw new Error(resultData.error || "AI could not process this image");
-          if (resultData?.error) throw new Error(resultData.error);
-          return resultData.enhancedImage.startsWith("data:")
-            ? resultData.enhancedImage
-            : `data:image/png;base64,${resultData.enhancedImage}`;
+          if (!response.ok) throw new Error(data?.error || `AI enhancement failed (${response.status})`);
+          if (data?.fallback) throw new Error(data.error || "AI could not process this image");
+          if (data?.error) throw new Error(data.error);
+          return data.enhancedImage.startsWith("data:")
+            ? data.enhancedImage
+            : `data:image/png;base64,${data.enhancedImage}`;
         };
         const basePrompt = customAiPrompt || preset.options.aiPrompt || "";
         const aiResult = await invokeAI(basePrompt);

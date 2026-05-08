@@ -19,28 +19,7 @@ const CreditStatusPanel = ({
   onBuyClick,
 }: CreditStatusPanelProps) => {
   if (!isAiPreset) return null;
-
-  if (isAdmin) {
-    return (
-      <div className="carbon-surface border border-accent/40 rounded-lg p-4 flex items-center gap-3">
-        <Crown className="w-5 h-5 text-accent" />
-        <div>
-          <p
-            className="text-sm uppercase tracking-widest"
-            style={{ fontFamily: "'Russo One', sans-serif", color: "hsl(45 95% 65%)" }}
-          >
-            Admin — Unlimited
-          </p>
-          <p
-            className="text-xs uppercase tracking-[0.2em] text-muted-foreground mt-1"
-            style={{ fontFamily: "'Orbitron', sans-serif" }}
-          >
-            Using shared AI balance
-          </p>
-        </div>
-      </div>
-    );
-  }
+  if (isAdmin) return null;
 
   if (loading) {
     return (

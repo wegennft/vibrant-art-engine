@@ -6,17 +6,13 @@ import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";
 import BeforeAfterCard from "@/components/BeforeAfterCard";
 import EnhancePresetTabs from "@/components/EnhancePresetTabs";
-import CreditStatusPanel from "@/components/CreditStatusPanel";
-import BuyCreditsDialog from "@/components/BuyCreditsDialog";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { enhanceImageCanvas } from "@/lib/enhanceImage";
 import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
 import { useAuth } from "@/hooks/useAuth";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
-import { useUserCredits } from "@/hooks/useUserCredits";
 import { supabase } from "@/integrations/supabase/client";
 
-const CREDIT_COST_PER_ENHANCE = 2;
 
 
 interface AlphaDiffStats {
@@ -141,13 +137,10 @@ const Index = () => {
     ENHANCE_PRESETS.find((p) => p.id === "ai-art")?.options.aiPrompt ?? ""
   );
   const [transparencyThreshold, setTransparencyThreshold] = useState(0.5);
-  const [buyOpen, setBuyOpen] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { credits, loading: creditsLoading, refetch: refetchCredits } = useUserCredits();
 
   const currentPreset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
   const isAiPreset = !!currentPreset.options.aiGenerate;
-  const insufficientCredits = isAiPreset && !isAdmin && (credits?.balance ?? 0) < CREDIT_COST_PER_ENHANCE;
 
   const handleImagesSelected = useCallback(async (files: File[]) => {
     const BATCH_SIZE = 5;
@@ -174,11 +167,6 @@ const Index = () => {
     const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
     if (preset.options.aiGenerate && !user) {
       toast.error("Sign in to use AI enhancement");
-      return;
-    }
-    if (preset.options.aiGenerate && !isAdmin && (credits?.balance ?? 0) < CREDIT_COST_PER_ENHANCE) {
-      toast.error("Insufficient credits. Click Buy Credits to top up.");
-      setBuyOpen(true);
       return;
     }
     setImages((prev) =>
@@ -260,13 +248,11 @@ const Index = () => {
           });
           const data = await response.json().catch(() => null);
           if (response.status === 402 || data?.code === "INSUFFICIENT_CREDITS") {
-            if (!isAdmin) setBuyOpen(true);
-            throw new Error(data?.error || "Insufficient credits. Top up to continue.");
+            throw new Error(data?.error || "Service unavailable. Please try again.");
           }
           if (!response.ok) throw new Error(data?.error || `AI enhancement failed (${response.status})`);
           if (data?.fallback) throw new Error(data.error || "AI could not process this image");
           if (data?.error) throw new Error(data.error);
-          refetchCredits();
           return data.enhancedImage.startsWith("data:")
             ? data.enhancedImage
             : `data:image/png;base64,${data.enhancedImage}`;
@@ -299,7 +285,7 @@ const Index = () => {
       );
       toast.error(message);
     }
-  }, [images, selectedPreset, customAiPrompt, transparencyThreshold, user, isAdmin, credits, refetchCredits]);
+  }, [images, selectedPreset, customAiPrompt, transparencyThreshold, user, isAdmin]);
 
   const enhanceAll = useCallback(async () => {
     const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);
@@ -391,31 +377,6 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {user && !isAdmin && (
-                <div
-                  className="hidden sm:flex items-center gap-2 carbon-surface border border-accent/30 px-3 py-1.5 rounded"
-                  style={{ fontFamily: "'Orbitron', sans-serif" }}
-                  title="AI credits balance"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-accent" />
-                  <span className="text-xs uppercase tracking-wider text-muted-foreground">Credits:</span>
-                  <span className="text-sm font-bold text-gold-metallic" style={{ fontFamily: "'Russo One', sans-serif" }}>
-                    {creditsLoading ? "…" : credits?.balance ?? 0}
-                  </span>
-                </div>
-              )}
-              {user && !isAdmin && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setBuyOpen(true)}
-                  className="uppercase tracking-wider text-xs border-primary/40 text-primary hover:border-primary"
-                  style={{ fontFamily: "'Russo One', sans-serif" }}
-                >
-                  <Sparkles className="w-4 h-4 mr-1" />
-                  Buy Credits
-                </Button>
-              )}
               {isAdmin && (
                 <Button
                   variant="outline"
@@ -505,16 +466,6 @@ const Index = () => {
           onTransparencyThresholdChange={setTransparencyThreshold}
         />
 
-        <CreditStatusPanel
-          isAdmin={isAdmin}
-          balance={credits?.balance ?? null}
-          loading={creditsLoading}
-          isAiPreset={isAiPreset}
-          costPerEnhance={CREDIT_COST_PER_ENHANCE}
-          onBuyClick={() => setBuyOpen(true)}
-        />
-        <BuyCreditsDialog open={buyOpen && !isAdmin} onOpenChange={setBuyOpen} />
-
         {images.length > 0 && (
           <div className="flex items-center justify-between flex-wrap gap-3 carbon-surface border border-border rounded-lg p-4">
             <p
@@ -561,7 +512,7 @@ const Index = () => {
               ) : (
                 <Button
                   onClick={enhanceAll}
-                  disabled={images.every((i) => i.enhancedSrc) || insufficientCredits}
+                  disabled={images.every((i) => i.enhancedSrc)}
                   className="font-display text-xs uppercase tracking-wider text-accent-foreground hover:shadow-[0_0_25px_hsl(270,85%,55%,0.5)] transition-shadow"
                   style={{
                     fontFamily: "'Russo One', sans-serif",

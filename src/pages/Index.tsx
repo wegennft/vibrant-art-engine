@@ -6,17 +6,13 @@ import { toast } from "sonner";
 import ImageUploader from "@/components/ImageUploader";
 import BeforeAfterCard from "@/components/BeforeAfterCard";
 import EnhancePresetTabs from "@/components/EnhancePresetTabs";
-import CreditStatusPanel from "@/components/CreditStatusPanel";
-import BuyCreditsDialog from "@/components/BuyCreditsDialog";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { enhanceImageCanvas } from "@/lib/enhanceImage";
 import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
 import { useAuth } from "@/hooks/useAuth";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
-import { useUserCredits } from "@/hooks/useUserCredits";
 import { supabase } from "@/integrations/supabase/client";
 
-const CREDIT_COST_PER_ENHANCE = 2;
 
 
 interface AlphaDiffStats {

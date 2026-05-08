@@ -126,6 +126,45 @@ const fileToBase64 = (file: File): Promise<string> =>
     reader.readAsDataURL(file);
   });
 
+const TOKEN_REFRESH_MARGIN_MS = 5 * 60_000;
+
+const getJwtExpiryMs = (token: string): number | null => {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const decoded = JSON.parse(atob(padded));
+    return typeof decoded.exp === "number" ? decoded.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
+
+const getFreshAccessToken = async (forceRefresh = false): Promise<string> => {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error("Session expired. Please sign in again.");
+
+  const session = sessionData.session;
+  if (!session?.access_token) throw new Error("Sign in to use AI enhancement");
+
+  const jwtExpiryMs = getJwtExpiryMs(session.access_token);
+  const sessionExpiryMs = session.expires_at ? session.expires_at * 1000 : null;
+  const expiresAtMs = Math.min(...[jwtExpiryMs, sessionExpiryMs].filter((value): value is number => typeof value === "number"));
+  const shouldRefresh = forceRefresh || !Number.isFinite(expiresAtMs) || expiresAtMs - Date.now() < TOKEN_REFRESH_MARGIN_MS;
+
+  if (!shouldRefresh) return session.access_token;
+
+  const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession({
+    refresh_token: session.refresh_token,
+  });
+  if (refreshError || !refreshed.session?.access_token) {
+    throw new Error("Session expired. Please sign in again.");
+  }
+
+  return refreshed.session.access_token;
+};
+
 const Index = () => {
   const { user, isAdmin, signOut } = useAuth();
   const { settings } = useSiteSettings();

@@ -260,7 +260,7 @@ const Index = () => {
           });
           const data = await response.json().catch(() => null);
           if (response.status === 402 || data?.code === "INSUFFICIENT_CREDITS") {
-            setBuyOpen(true);
+            if (!isAdmin) setBuyOpen(true);
             throw new Error(data?.error || "Insufficient credits. Top up to continue.");
           }
           if (!response.ok) throw new Error(data?.error || `AI enhancement failed (${response.status})`);
@@ -513,7 +513,7 @@ const Index = () => {
           costPerEnhance={CREDIT_COST_PER_ENHANCE}
           onBuyClick={() => setBuyOpen(true)}
         />
-        <BuyCreditsDialog open={buyOpen} onOpenChange={setBuyOpen} />
+        <BuyCreditsDialog open={buyOpen && !isAdmin} onOpenChange={setBuyOpen} />
 
         {images.length > 0 && (
           <div className="flex items-center justify-between flex-wrap gap-3 carbon-surface border border-border rounded-lg p-4">

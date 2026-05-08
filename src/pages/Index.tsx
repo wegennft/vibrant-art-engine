@@ -392,6 +392,31 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {user && !isAdmin && (
+                <div
+                  className="hidden sm:flex items-center gap-2 carbon-surface border border-accent/30 px-3 py-1.5 rounded"
+                  style={{ fontFamily: "'Orbitron', sans-serif" }}
+                  title="AI credits balance"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-accent" />
+                  <span className="text-xs uppercase tracking-wider text-muted-foreground">Credits:</span>
+                  <span className="text-sm font-bold text-gold-metallic" style={{ fontFamily: "'Russo One', sans-serif" }}>
+                    {creditsLoading ? "…" : credits?.balance ?? 0}
+                  </span>
+                </div>
+              )}
+              {user && !isAdmin && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBuyOpen(true)}
+                  className="uppercase tracking-wider text-xs border-primary/40 text-primary hover:border-primary"
+                  style={{ fontFamily: "'Russo One', sans-serif" }}
+                >
+                  <Sparkles className="w-4 h-4 mr-1" />
+                  Buy Credits
+                </Button>
+              )}
               {isAdmin && (
                 <Button
                   variant="outline"

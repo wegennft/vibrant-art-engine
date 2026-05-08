@@ -260,6 +260,10 @@ const Index = () => {
             }),
           });
           const data = await response.json().catch(() => null);
+          if (response.status === 402 || /credits? exhausted|payment_required|not enough credits/i.test(data?.error || "")) {
+            markExhausted();
+            throw new Error("AI credits exhausted. Add funds in Workspace settings.");
+          }
           if (!response.ok) throw new Error(data?.error || `AI enhancement failed (${response.status})`);
           if (data?.fallback) throw new Error(data.error || "AI could not process this image");
           if (data?.error) throw new Error(data.error);

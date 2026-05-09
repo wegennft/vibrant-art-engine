@@ -166,8 +166,13 @@ const Index = () => {
   const enhanceImage = useCallback(async (imageId: string) => {
     const preset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
     if (preset.options.aiGenerate && !user) {
-      toast.error("Sign in to use AI enhancement");
-      return;
+      const message = "Sign in to use AI enhancement";
+      setImages((prev) =>
+        prev.map((img) =>
+          img.id === imageId ? { ...img, isProcessing: false, error: message } : img
+        )
+      );
+      throw new Error(message);
     }
     setImages((prev) =>
       prev.map((img) =>
@@ -303,19 +308,32 @@ const Index = () => {
       toast.info("All images already enhanced!");
       return;
     }
+    if (isAiPreset && !user) {
+      const message = "Sign in to use AI enhancement";
+      setImages((prev) =>
+        prev.map((img) =>
+          !img.enhancedSrc && !img.isProcessing ? { ...img, error: message } : img
+        )
+      );
+      toast.error(message);
+      navigate("/auth");
+      return;
+    }
     const controller = new AbortController();
     abortControllerRef.current = controller;
     setIsEnhancingAll(true);
+    let completed = 0;
     for (const img of unenhanced) {
       if (controller.signal.aborted) break;
       await enhanceImage(img.id);
+      completed += 1;
     }
     setIsEnhancingAll(false);
     abortControllerRef.current = null;
-    if (!controller.signal.aborted) {
+    if (!controller.signal.aborted && completed === unenhanced.length) {
       toast.success("All images enhanced!");
     }
-  }, [images, enhanceImage]);
+  }, [images, enhanceImage, isAiPreset, user, navigate]);
 
   const stopEnhancing = useCallback(() => {
     abortControllerRef.current?.abort();

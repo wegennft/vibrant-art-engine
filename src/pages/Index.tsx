@@ -139,6 +139,34 @@ const Index = () => {
   );
   const [transparencyThreshold, setTransparencyThreshold] = useState(0.5);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const hydratedRef = useRef(false);
+
+  // Hydrate from last save point on mount
+  useEffect(() => {
+    (async () => {
+      const saved = await loadSession<ImageItem[]>();
+      if (saved && saved.length > 0) {
+        // Reset any stale "processing" flags from a prior crash
+        const restored = saved.map((img) => ({ ...img, isProcessing: false }));
+        setImages(restored);
+        const enhanced = restored.filter((i) => i.enhancedSrc).length;
+        toast.info(`Restored ${restored.length} image${restored.length !== 1 ? "s" : ""} from your last session${enhanced ? ` (${enhanced} already enhanced)` : ""}`);
+      }
+      hydratedRef.current = true;
+    })();
+  }, []);
+
+  // Auto-save checkpoint whenever images change (after hydration)
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    if (images.length === 0) {
+      clearSession();
+    } else {
+      // Strip transient processing flag before persisting
+      const snapshot = images.map(({ isProcessing, ...rest }) => ({ ...rest, isProcessing: false }));
+      saveSession(snapshot);
+    }
+  }, [images]);
 
   const currentPreset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
   const isAiPreset = !!currentPreset.options.aiGenerate;

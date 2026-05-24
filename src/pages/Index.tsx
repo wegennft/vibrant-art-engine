@@ -263,10 +263,15 @@ const Index = () => {
           let { data: sessionData } = await supabase.auth.getSession();
           let token = sessionData.session?.access_token;
           const expiresAt = sessionData.session?.expires_at ?? 0;
-          // Refresh if missing or expiring within 60s
-          if (!token || expiresAt * 1000 - Date.now() < 60_000) {
-            const { data: refreshed } = await supabase.auth.refreshSession();
-            token = refreshed.session?.access_token ?? token;
+          // Always refresh if missing or expiring within 2 minutes
+          if (!token || expiresAt * 1000 - Date.now() < 120_000) {
+            const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+            if (refreshErr || !refreshed.session?.access_token) {
+              await supabase.auth.signOut();
+              navigate("/auth");
+              throw new Error("Your session expired. Please sign in again.");
+            }
+            token = refreshed.session.access_token;
           }
           if (!token) throw new Error("Sign in to use AI enhancement");
           const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/enhance-image`, {

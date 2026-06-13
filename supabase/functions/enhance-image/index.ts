@@ -118,7 +118,7 @@ serve(async (req) => {
   };
 
   try {
-    const { imageBase64, fileName, prompt: customPrompt, width, height, transparentPercent } = await req.json();
+    const { imageBase64, fileName, prompt: customPrompt, width, height, transparentPercent, imageType } = await req.json();
 
     if (!imageBase64) {
       await refundIfNeeded();
@@ -127,6 +127,17 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    // Determine image type — explicit override wins, otherwise fall back to transparency heuristic
+    const isFullImage = imageType === "full";
+    const isTraitLayer = imageType === "trait"
+      || (imageType !== "full" && transparentPercent !== undefined && transparentPercent > 80);
+    const isSmallTrait = !isFullImage && isTraitLayer;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {

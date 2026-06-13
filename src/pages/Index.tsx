@@ -528,6 +528,8 @@ const Index = () => {
           onCustomPromptChange={setCustomAiPrompt}
           transparencyThreshold={transparencyThreshold}
           onTransparencyThresholdChange={setTransparencyThreshold}
+          imageType={imageType}
+          onImageTypeChange={setImageType}
         />
 
         {images.length > 0 && (

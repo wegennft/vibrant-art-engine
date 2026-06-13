@@ -290,6 +290,7 @@ const Index = () => {
               width: origInfo.width,
               height: origInfo.height,
               transparentPercent: origInfo.transparentPercent,
+              imageType,
             }),
           });
           const data = await response.json().catch(() => null);

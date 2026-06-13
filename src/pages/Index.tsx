@@ -138,6 +138,7 @@ const Index = () => {
     ENHANCE_PRESETS.find((p) => p.id === "ai-art")?.options.aiPrompt ?? ""
   );
   const [transparencyThreshold, setTransparencyThreshold] = useState(0.5);
+  const [imageType, setImageType] = useState<"auto" | "full" | "trait">("auto");
   const abortControllerRef = useRef<AbortController | null>(null);
   const hydratedRef = useRef(false);
 

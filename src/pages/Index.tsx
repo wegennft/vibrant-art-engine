@@ -138,6 +138,7 @@ const Index = () => {
     ENHANCE_PRESETS.find((p) => p.id === "ai-art")?.options.aiPrompt ?? ""
   );
   const [transparencyThreshold, setTransparencyThreshold] = useState(0.5);
+  const [imageType, setImageType] = useState<"auto" | "full" | "trait">("auto");
   const abortControllerRef = useRef<AbortController | null>(null);
   const hydratedRef = useRef(false);
 
@@ -289,6 +290,7 @@ const Index = () => {
               width: origInfo.width,
               height: origInfo.height,
               transparentPercent: origInfo.transparentPercent,
+              imageType,
             }),
           });
           const data = await response.json().catch(() => null);
@@ -334,7 +336,7 @@ const Index = () => {
       );
       toast.error(message);
     }
-  }, [images, selectedPreset, customAiPrompt, transparencyThreshold, user, isAdmin]);
+  }, [images, selectedPreset, customAiPrompt, transparencyThreshold, imageType, user, isAdmin]);
 
   const enhanceAll = useCallback(async () => {
     const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);
@@ -526,6 +528,8 @@ const Index = () => {
           onCustomPromptChange={setCustomAiPrompt}
           transparencyThreshold={transparencyThreshold}
           onTransparencyThresholdChange={setTransparencyThreshold}
+          imageType={imageType}
+          onImageTypeChange={setImageType}
         />
 
         {images.length > 0 && (

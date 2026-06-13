@@ -139,10 +139,6 @@ serve(async (req) => {
       || (imageType !== "full" && transparentPercent !== undefined && transparentPercent > 80);
     const isSmallTrait = !isFullImage && isTraitLayer;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
 
     // Build context about the image type for the AI
     const traitContext = isFullImage

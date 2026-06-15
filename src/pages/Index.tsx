@@ -12,6 +12,7 @@ import { ENHANCE_PRESETS } from "@/lib/enhancePresets";
 import { useAuth } from "@/hooks/useAuth";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { supabase } from "@/integrations/supabase/client";
+import { saveSession, loadSession, clearSession } from "@/lib/sessionStore";
 
 
 

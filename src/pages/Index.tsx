@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { saveSession, loadSession, clearSession } from "@/lib/sessionStore";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, Download, Trash2, StopCircle, Flame, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";

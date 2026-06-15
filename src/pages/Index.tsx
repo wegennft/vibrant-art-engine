@@ -89,15 +89,14 @@ const resizeToMatchOriginal = (originalSrc: string, aiSrc: string, transparencyT
           const originalAlpha = origData.data[i + 3];
           const aiAlpha = aiData.data[i + 3];
           if (originalAlpha === TRANSPARENT_ALPHA) {
+            // Fully transparent in original: clear RGB and force alpha=0
             if (aiAlpha !== TRANSPARENT_ALPHA) pixelsCleared++;
             aiData.data[i] = 0;
             aiData.data[i + 1] = 0;
             aiData.data[i + 2] = 0;
-          } else if (isTraitLayer && (originalAlpha < FULLY_OPAQUE_ALPHA || isNearTransparency(i))) {
-            aiData.data[i] = origData.data[i];
-            aiData.data[i + 1] = origData.data[i + 1];
-            aiData.data[i + 2] = origData.data[i + 2];
           }
+          // Force alpha to match original to preserve trait-layer transparency exactly.
+          // Keep AI's RGB for all non-fully-transparent pixels so the enhancement is visible.
           aiData.data[i + 3] = originalAlpha;
         }
         ctx.putImageData(aiData, 0, 0);

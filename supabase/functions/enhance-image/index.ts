@@ -9,32 +9,57 @@ const corsHeaders = {
 
 const CREDIT_COST = 2;
 
-async function callAIGateway(body: string, apiKey: string, maxRetries = 3): Promise<Response> {
+const PER_ATTEMPT_TIMEOUT_MS = 60_000; // hard cap per AI call so we never hit the 150s idle timeout
+
+async function callAIGateway(body: string, apiKey: string, maxRetries = 2): Promise<Response> {
+  let lastErr: unknown;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body,
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PER_ATTEMPT_TIMEOUT_MS);
+    try {
+      const response = await fetch(
+        "https://ai.gateway.lovable.dev/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body,
+          signal: controller.signal,
+        }
+      );
+      clearTimeout(timer);
+
+      // Retry on transient server errors (502, 503, 504)
+      if ([502, 503, 504].includes(response.status) && attempt < maxRetries - 1) {
+        console.warn(`AI gateway returned ${response.status}, retrying (${attempt + 1}/${maxRetries})...`);
+        await response.text();
+        await new Promise((r) => setTimeout(r, 1500));
+        continue;
       }
-    );
 
-    // Retry on transient server errors (502, 503, 504)
-    if ([502, 503, 504].includes(response.status) && attempt < maxRetries - 1) {
-      console.warn(`AI gateway returned ${response.status}, retrying (${attempt + 1}/${maxRetries})...`);
-      await response.text(); // consume body
-      await new Promise((r) => setTimeout(r, 2000 * (attempt + 1))); // backoff
-      continue;
+      return response;
+    } catch (err) {
+      clearTimeout(timer);
+      lastErr = err;
+      const aborted = (err as any)?.name === "AbortError";
+      console.warn(
+        `AI gateway fetch ${aborted ? "timed out" : "failed"} (attempt ${attempt + 1}/${maxRetries}):`,
+        err
+      );
+      if (attempt < maxRetries - 1) {
+        await new Promise((r) => setTimeout(r, 1500));
+        continue;
+      }
+      // Surface a clean 504 to the client instead of letting the platform idle-timeout
+      return new Response(
+        JSON.stringify({ error: "AI service timed out. Please try again." }),
+        { status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
-
-    return response;
   }
-  // Should never reach here, but just in case
-  throw new Error("Exhausted retries");
+  throw lastErr ?? new Error("Exhausted retries");
 }
 
 serve(async (req) => {

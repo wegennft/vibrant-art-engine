@@ -547,7 +547,14 @@ const Index = () => {
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                onClick={() => setImages([])}
+                onClick={() => {
+                  abortControllerRef.current?.abort();
+                  abortControllerRef.current = null;
+                  setIsEnhancingAll(false);
+                  setImages([]);
+                  clearSession();
+                  toast.info("All images cleared");
+                }}
                 className="font-display text-xs uppercase tracking-wider border-primary/30 hover:border-primary hover:shadow-[0_0_15px_hsl(270,85%,55%,0.3)]"
                 style={{ fontFamily: "'Russo One', sans-serif" }}
               >

@@ -139,30 +139,35 @@ const Index = () => {
   const [transparencyThreshold, setTransparencyThreshold] = useState(0.5);
   const [imageType, setImageType] = useState<"auto" | "full" | "trait">("auto");
   const abortControllerRef = useRef<AbortController | null>(null);
+  const hydratedRef = useRef(false);
 
-  // Session restore / auto-save disabled per user request
-  // useEffect(() => {
-  //   (async () => {
-  //     const saved = await loadSession<ImageItem[]>();
-  //     if (saved && saved.length > 0) {
-  //       const restored = saved.map((img) => ({ ...img, isProcessing: false }));
-  //       setImages(restored);
-  //       const enhanced = restored.filter((i) => i.enhancedSrc).length;
-  //       toast.info(`Restored ${restored.length} image${restored.length !== 1 ? "s" : ""} from your last session${enhanced ? ` (${enhanced} already enhanced)` : ""}`);
-  //     }
-  //     hydratedRef.current = true;
-  //   })();
-  // }, []);
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await loadSession<ImageItem[]>();
+        if (saved && saved.length > 0) {
+          const restored = saved.map((img) => ({ ...img, isProcessing: false }));
+          setImages(restored);
+          const enhanced = restored.filter((i) => i.enhancedSrc).length;
+          toast.info(`Restored ${restored.length} image${restored.length !== 1 ? "s" : ""} from your last session${enhanced ? ` (${enhanced} already enhanced)` : ""}`);
+        }
+      } catch (e) {
+        console.warn("Session restore failed:", e);
+      } finally {
+        hydratedRef.current = true;
+      }
+    })();
+  }, []);
 
-  // useEffect(() => {
-  //   if (!hydratedRef.current) return;
-  //   if (images.length === 0) {
-  //     clearSession();
-  //   } else {
-  //     const snapshot = images.map(({ isProcessing, ...rest }) => ({ ...rest, isProcessing: false }));
-  //     saveSession(snapshot);
-  //   }
-  // }, [images]);
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    if (images.length === 0) {
+      clearSession();
+    } else {
+      const snapshot = images.map(({ isProcessing, ...rest }) => ({ ...rest, isProcessing: false }));
+      saveSession(snapshot);
+    }
+  }, [images]);
 
   const currentPreset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];
   const isAiPreset = !!currentPreset.options.aiGenerate;

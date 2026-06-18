@@ -321,10 +321,26 @@ const Index = () => {
         };
 
         const basePrompt = customAiPrompt || preset.options.aiPrompt || "";
-        const aiResult = await invokeAI(basePrompt);
-        const result = await resizeToMatchOriginal(image!.originalSrc, aiResult, transparencyThreshold / 100);
-        enhanced = result.dataUrl;
-        alphaDiffStats = result.alphaDiff;
+        let aiResult: string;
+        try {
+          aiResult = await invokeAI(basePrompt);
+        } catch (e: any) {
+          if (e?.message === "__RETRY_AUTH__") {
+            aiResult = await invokeAI(basePrompt);
+          } else if (e?.fallback) {
+            // AI unavailable — fall back to local canvas enhancement so user still gets a result
+            toast.info(`${image?.fileName}: AI unavailable, used local enhancement`);
+            enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
+            aiResult = "";
+          } else {
+            throw e;
+          }
+        }
+        if (aiResult) {
+          const result = await resizeToMatchOriginal(image!.originalSrc, aiResult, transparencyThreshold / 100);
+          enhanced = result.dataUrl;
+          alphaDiffStats = result.alphaDiff;
+        }
       } else {
         enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
       }

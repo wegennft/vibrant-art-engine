@@ -159,14 +159,54 @@ const Index = () => {
     })();
   }, []);
 
+  const saveTimerRef = useRef<number | null>(null);
+  const sessionTooLargeRef = useRef(false);
   useEffect(() => {
     if (!hydratedRef.current) return;
     if (images.length === 0) {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      sessionTooLargeRef.current = false;
       clearSession();
-    } else {
-      const snapshot = images.map(({ isProcessing, ...rest }) => ({ ...rest, isProcessing: false }));
-      saveSession(snapshot);
+      return;
     }
+    // Debounce so a fast batch (uploads / sequential enhancements) doesn't
+    // re-serialize hundreds of MB of base64 on every state update.
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null;
+      try {
+        // Rough payload size estimate — skip persisting huge sessions to
+        // avoid out-of-memory while serializing into IndexedDB.
+        const MAX_BYTES = 80 * 1024 * 1024; // 80 MB
+        let approxBytes = 0;
+        for (const img of images) {
+          approxBytes += (img.originalSrc?.length ?? 0) + (img.enhancedSrc?.length ?? 0);
+          if (approxBytes > MAX_BYTES) break;
+        }
+        if (approxBytes > MAX_BYTES) {
+          if (!sessionTooLargeRef.current) {
+            sessionTooLargeRef.current = true;
+            clearSession();
+            toast.warning("Session is too large to auto-save. Download your enhanced images before refreshing.");
+          }
+          return;
+        }
+        sessionTooLargeRef.current = false;
+        const snapshot = images.map((img) => ({ ...img, isProcessing: false }));
+        saveSession(snapshot);
+      } catch (e) {
+        console.warn("Session save skipped:", e);
+      }
+    }, 1500);
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
   }, [images]);
 
   const currentPreset = ENHANCE_PRESETS.find((p) => p.id === selectedPreset) || ENHANCE_PRESETS[0];

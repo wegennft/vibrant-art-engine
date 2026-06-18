@@ -295,24 +295,52 @@ const Index = () => {
           });
           const data = await response.json().catch(() => null);
           if (response.status === 401 || data?.code === "AUTH_EXPIRED") {
-            await supabase.auth.signOut();
-            throw new Error("Your session expired. Please sign in again.");
+            // Try one forced refresh + retry before giving up
+            const { data: refreshed } = await supabase.auth.refreshSession();
+            const newToken = refreshed.session?.access_token;
+            if (!newToken) {
+              await supabase.auth.signOut();
+              navigate("/auth");
+              throw new Error("Your session expired. Please sign in again.");
+            }
+            throw new Error("__RETRY_AUTH__");
           }
           if (response.status === 402 || data?.code === "INSUFFICIENT_CREDITS") {
             throw new Error(data?.error || "Service unavailable. Please try again.");
           }
           if (!response.ok) throw new Error(data?.error || `AI enhancement failed (${response.status})`);
-          if (data?.fallback) throw new Error(data.error || "AI could not process this image");
+          if (data?.fallback) {
+            const err: any = new Error(data.error || "AI could not process this image");
+            err.fallback = true;
+            throw err;
+          }
           if (data?.error) throw new Error(data.error);
           return data.enhancedImage.startsWith("data:")
             ? data.enhancedImage
             : `data:image/png;base64,${data.enhancedImage}`;
         };
+
         const basePrompt = customAiPrompt || preset.options.aiPrompt || "";
-        const aiResult = await invokeAI(basePrompt);
-        const result = await resizeToMatchOriginal(image!.originalSrc, aiResult, transparencyThreshold / 100);
-        enhanced = result.dataUrl;
-        alphaDiffStats = result.alphaDiff;
+        let aiResult: string;
+        try {
+          aiResult = await invokeAI(basePrompt);
+        } catch (e: any) {
+          if (e?.message === "__RETRY_AUTH__") {
+            aiResult = await invokeAI(basePrompt);
+          } else if (e?.fallback) {
+            // AI unavailable — fall back to local canvas enhancement so user still gets a result
+            toast.info(`${image?.fileName}: AI unavailable, used local enhancement`);
+            enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
+            aiResult = "";
+          } else {
+            throw e;
+          }
+        }
+        if (aiResult) {
+          const result = await resizeToMatchOriginal(image!.originalSrc, aiResult, transparencyThreshold / 100);
+          enhanced = result.dataUrl;
+          alphaDiffStats = result.alphaDiff;
+        }
       } else {
         enhanced = await enhanceImageCanvas(image!.originalSrc, preset.options, abortControllerRef.current?.signal);
       }

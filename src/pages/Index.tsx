@@ -378,6 +378,18 @@ const Index = () => {
     }
   }, [images, selectedPreset, customAiPrompt, transparencyThreshold, imageType, user, isAdmin]);
 
+  // Hard memory ceiling for the in-memory enhancement queue. Each enhanced
+  // base64 PNG can be several MB; without a cap a large batch will OOM the tab.
+  const MAX_QUEUE_MEMORY_BYTES = 250 * 1024 * 1024; // ~250 MB of base64 strings
+
+  const estimateMemoryBytes = (list: ImageItem[]) => {
+    let bytes = 0;
+    for (const img of list) {
+      bytes += (img.originalSrc?.length ?? 0) + (img.enhancedSrc?.length ?? 0);
+    }
+    return bytes;
+  };
+
   const enhanceAll = useCallback(async () => {
     const unenhanced = images.filter((img) => !img.enhancedSrc && !img.isProcessing);
     if (unenhanced.length === 0) {
@@ -399,14 +411,31 @@ const Index = () => {
     abortControllerRef.current = controller;
     setIsEnhancingAll(true);
     let completed = 0;
+    let stoppedForMemory = false;
     for (const img of unenhanced) {
       if (controller.signal.aborted) break;
+      // Re-read current state to include any enhanced data added during the batch.
+      const currentBytes = await new Promise<number>((resolve) => {
+        setImages((prev) => {
+          resolve(estimateMemoryBytes(prev));
+          return prev;
+        });
+      });
+      if (currentBytes > MAX_QUEUE_MEMORY_BYTES) {
+        stoppedForMemory = true;
+        controller.abort();
+        toast.warning(
+          `Memory limit reached (~${Math.round(currentBytes / 1024 / 1024)} MB). Download enhanced images and clear the queue, then continue.`,
+          { duration: 8000 }
+        );
+        break;
+      }
       await enhanceImage(img.id);
       completed += 1;
     }
     setIsEnhancingAll(false);
     abortControllerRef.current = null;
-    if (!controller.signal.aborted && completed === unenhanced.length) {
+    if (!stoppedForMemory && !controller.signal.aborted && completed === unenhanced.length) {
       toast.success("All images enhanced!");
     }
   }, [images, enhanceImage, isAiPreset, user, navigate]);

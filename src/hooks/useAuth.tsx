@@ -28,9 +28,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      (_event, newSession) => {
+        setSession(newSession);
+        setUser((prev) => {
+          const nextId = newSession?.user?.id ?? null;
+          const prevId = prev?.id ?? null;
+          // Keep the same user reference across token refreshes to avoid re-renders that kick the user
+          if (prevId === nextId) return prev;
+          return newSession?.user ?? null;
+        });
       }
     );
 
@@ -43,18 +49,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const userId = user?.id ?? null;
+
   useEffect(() => {
     let cancelled = false;
 
     const checkAdmin = async () => {
-      if (!user) {
+      if (!userId) {
         setIsAdmin(false);
         return;
       }
 
-      setLoading(true);
       const { data, error } = await supabase.rpc("has_role", {
-        _user_id: user.id,
+        _user_id: userId,
         _role: "admin",
       });
 
@@ -66,7 +73,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         setIsAdmin(!!data);
       }
-      setLoading(false);
     };
 
     checkAdmin();
@@ -74,7 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [userId]);
 
   const signOut = async () => {
     await supabase.auth.signOut();

@@ -225,9 +225,16 @@ serve(async (req) => {
         );
       }
 
+      // Transient upstream errors → tell client to fall back to canvas enhancement instead of crashing
+      if ([500, 502, 503, 504].includes(response.status)) {
+        return new Response(
+          JSON.stringify({ error: "AI service temporarily unavailable — used local enhancement instead.", fallback: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       return new Response(
-        JSON.stringify({ error: `AI gateway error (${response.status}). Please try again.` }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: `AI gateway error (${response.status}). Please try again.`, fallback: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

@@ -301,18 +301,19 @@ const Index = () => {
 
         const invokeAI = async (prompt: string) => {
           const smallBase64 = await downscaleForAI(image!.originalSrc);
-          let { data: sessionData } = await supabase.auth.getSession();
-          let token = sessionData.session?.access_token;
-          const expiresAt = sessionData.session?.expires_at ?? 0;
-          // Always refresh if missing or expiring within 2 minutes
-          if (!token || expiresAt * 1000 - Date.now() < 120_000) {
-            const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
-            if (refreshErr || !refreshed.session?.access_token) {
+          // Always refresh the session right before each call — long batches can
+          // otherwise burn through the access token's lifetime mid-queue.
+          const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+          let token = refreshed?.session?.access_token;
+          if (refreshErr || !token) {
+            const { data: sessionData } = await supabase.auth.getSession();
+            token = sessionData.session?.access_token;
+            const expiresAt = sessionData.session?.expires_at ?? 0;
+            if (!token || expiresAt * 1000 - Date.now() < 60_000) {
               await supabase.auth.signOut();
               navigate("/auth");
               throw new Error("Your session expired. Please sign in again.");
             }
-            token = refreshed.session.access_token;
           }
           if (!token) throw new Error("Sign in to use AI enhancement");
           const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/enhance-image`, {
